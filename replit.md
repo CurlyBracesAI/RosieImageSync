@@ -4,17 +4,18 @@
 Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi-agent system. This service centralizes image processing for real estate deals, integrating AWS Rekognition and OpenAI to generate alt text and tooltips for property images.
 
 ## Current Status (November 16, 2025)
-**Phase**: Output Structure Ready
+**Phase**: Image Fetching Integrated
 - Basic Flask application structure created
 - Blueprint skeleton in place for `/rosie-images` endpoint
 - Input validation complete: accepts deal_id, neighborhood, image_urls
 - Returns structured response with image_count and images array
-- Route builds `processed` list with {"url": url, "status": "pending"} for each image
+- Route calls `_fetch_image_bytes(url)` for each image and tracks success/failure
+- Each image object includes bytes_fetched boolean (true if downloaded, false if failed)
 - Client initialization for AWS Rekognition and OpenAI (conditional)
-- Helper function `_fetch_image_bytes(url)` added for downloading images
-- Helper function `_detect_labels(image_bytes)` added for AWS Rekognition label detection
-- Helper function `_generate_descriptions(neighborhood, labels, url)` added for OpenAI text generation
-- No image processing logic implemented yet (helpers exist but not called)
+- Helper function `_fetch_image_bytes(url)` integrated - downloads images from URLs
+- Helper function `_detect_labels(image_bytes)` ready but not called yet
+- Helper function `_generate_descriptions(neighborhood, labels, url)` ready but not called yet
+- Raw image bytes not stored in response (only boolean flag)
 
 ## Project Architecture
 
@@ -88,6 +89,14 @@ The endpoint will be called from Make.com, which will then update Pipedrive and 
 - Use existing app structure patterns
 
 ## Recent Changes
+- **2025-11-16**: Image fetching integration
+  - Modified loop to call `_fetch_image_bytes(url)` for each image URL
+  - Added `bytes_fetched` boolean field to each image object (true/false based on fetch success)
+  - No raw bytes stored in JSON response (only boolean flag)
+  - Verified with comprehensive testing: valid URLs return true, HTTP errors (403/404/500) and invalid domains return false
+  - Helper functions _detect_labels and _generate_descriptions remain unused
+  - Response structure: status, deal_id, neighborhood, image_count, images[{url, status, bytes_fetched}]
+  
 - **2025-11-16**: Output structure preparation
   - Modified `/rosie-images` route to build `processed` list after validation
   - Loop over `image_urls` and append {"url": url, "status": "pending"} for each
