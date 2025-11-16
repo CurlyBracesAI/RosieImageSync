@@ -21,6 +21,21 @@ def _fetch_image_bytes(url):
     except Exception:
         return None
 
+def _detect_labels(image_bytes):
+    if image_bytes is None:
+        return []
+    
+    try:
+        response = rekognition.detect_labels(
+            Image={"Bytes": image_bytes},
+            MaxLabels=10,
+            MinConfidence=75
+        )
+        labels = [label["Name"] for label in response.get("Labels", [])]
+        return labels
+    except Exception:
+        return []
+
 bp_rosie_images = Blueprint("rosie_images", __name__)
 
 @bp_rosie_images.route("/rosie-images", methods=["POST"])
