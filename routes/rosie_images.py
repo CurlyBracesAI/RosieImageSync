@@ -77,11 +77,14 @@ def rosie_images():
     for url in image_urls:
         image_bytes = _fetch_image_bytes(url)
         labels = _detect_labels(image_bytes)
+        descriptions = _generate_descriptions(neighborhood, labels, url)
         processed.append({
             "url": url,
             "status": "pending",
             "bytes_fetched": image_bytes is not None,
-            "labels": labels
+            "labels": labels,
+            "alt_text": descriptions.get("alt_text", ""),
+            "tooltip_text": descriptions.get("tooltip_text", "")
         })
     
     return jsonify({
