@@ -4,12 +4,13 @@
 Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi-agent system. This service centralizes image processing for real estate deals, integrating AWS Rekognition and OpenAI to generate alt text and tooltips for property images.
 
 ## Current Status (November 16, 2025)
-**Phase**: Input Validation Implemented
+**Phase**: Helper Functions Ready
 - Basic Flask application structure created
 - Blueprint skeleton in place for `/rosie-images` endpoint
 - Input validation complete: accepts deal_id, neighborhood, image_urls
 - Returns structured response with image_count
 - Client initialization for AWS Rekognition and OpenAI (conditional)
+- Helper function `_fetch_image_bytes(url)` added for downloading images
 - No image processing logic implemented yet
 
 ## Project Architecture
@@ -84,6 +85,13 @@ The endpoint will be called from Make.com, which will then update Pipedrive and 
 - Use existing app structure patterns
 
 ## Recent Changes
+- **2025-11-16**: Helper function added
+  - Created `_fetch_image_bytes(url)` helper function
+  - Uses requests library to download images from URLs
+  - Returns raw bytes on success, None on failure
+  - Includes 30-second timeout and basic error handling
+  - Route behavior remains unchanged
+  
 - **2025-11-16**: Input validation implementation
   - Added JSON input parsing with request.get_json(silent=True)
   - Implemented validation for required fields: deal_id, neighborhood, image_urls
