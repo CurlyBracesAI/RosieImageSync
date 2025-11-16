@@ -4,18 +4,19 @@
 Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi-agent system. This service centralizes image processing for real estate deals, integrating AWS Rekognition and OpenAI to generate alt text and tooltips for property images.
 
 ## Current Status (November 16, 2025)
-**Phase**: Image Fetching Integrated
+**Phase**: Label Detection Integrated
 - Basic Flask application structure created
 - Blueprint skeleton in place for `/rosie-images` endpoint
 - Input validation complete: accepts deal_id, neighborhood, image_urls
 - Returns structured response with image_count and images array
 - Route calls `_fetch_image_bytes(url)` for each image and tracks success/failure
-- Each image object includes bytes_fetched boolean (true if downloaded, false if failed)
+- Route calls `_detect_labels(image_bytes)` for each image to extract labels
+- Each image object includes: url, status, bytes_fetched (boolean), labels (array)
 - Client initialization for AWS Rekognition and OpenAI (conditional)
 - Helper function `_fetch_image_bytes(url)` integrated - downloads images from URLs
-- Helper function `_detect_labels(image_bytes)` ready but not called yet
+- Helper function `_detect_labels(image_bytes)` integrated - detects labels via AWS Rekognition
 - Helper function `_generate_descriptions(neighborhood, labels, url)` ready but not called yet
-- Raw image bytes not stored in response (only boolean flag)
+- Raw image bytes not stored in response (only boolean flag and labels)
 
 ## Project Architecture
 
@@ -89,6 +90,15 @@ The endpoint will be called from Make.com, which will then update Pipedrive and 
 - Use existing app structure patterns
 
 ## Recent Changes
+- **2025-11-16**: Label detection integration
+  - Modified loop to call `_detect_labels(image_bytes)` after fetching bytes
+  - Added `labels` array field to each image object
+  - Labels returned as array of detected label names (empty when AWS not configured)
+  - All existing fields preserved: url, status, bytes_fetched
+  - Helper function _generate_descriptions remains unused
+  - Response structure: status, deal_id, neighborhood, image_count, images[{url, status, bytes_fetched, labels}]
+  - Verified with multiple test scenarios (valid/invalid URLs, mixed cases)
+  
 - **2025-11-16**: Image fetching integration
   - Modified loop to call `_fetch_image_bytes(url)` for each image URL
   - Added `bytes_fetched` boolean field to each image object (true/false based on fetch success)
