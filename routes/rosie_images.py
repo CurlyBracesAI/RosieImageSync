@@ -4,6 +4,15 @@ import os
 import requests
 from openai import OpenAI
 
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+rekognition = boto3.client(
+    "rekognition",
+    region_name=os.environ.get("AWS_REGION"),
+    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+)
+
 bp_rosie_images = Blueprint("rosie_images", __name__)
 
 @bp_rosie_images.route("/rosie-images", methods=["POST"])
