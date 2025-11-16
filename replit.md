@@ -3,12 +3,14 @@
 ## Overview
 Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi-agent system. This service centralizes image processing for real estate deals, integrating AWS Rekognition and OpenAI to generate alt text and tooltips for property images.
 
-## Current Status (November 15, 2025)
-**Phase**: MVP Skeleton Complete
+## Current Status (November 16, 2025)
+**Phase**: Input Validation Implemented
 - Basic Flask application structure created
 - Blueprint skeleton in place for `/rosie-images` endpoint
-- Stub endpoint returning `{"status": "ready"}` 
-- No business logic implemented yet
+- Input validation complete: accepts deal_id, neighborhood, image_urls
+- Returns structured response with image_count
+- Client initialization for AWS Rekognition and OpenAI (conditional)
+- No image processing logic implemented yet
 
 ## Project Architecture
 
@@ -23,7 +25,7 @@ Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi
 
 ### Current Endpoints
 - `GET /` - Returns API welcome message
-- `POST /rosie-images` - Stub endpoint (returns `{"status": "ready"}`)
+- `POST /rosie-images` - Accepts deal_id, neighborhood, and image_urls; validates input and returns status with image count
 
 ### Blueprint Details
 - **Name**: `bp_rosie_images`
@@ -82,6 +84,15 @@ The endpoint will be called from Make.com, which will then update Pipedrive and 
 - Use existing app structure patterns
 
 ## Recent Changes
+- **2025-11-16**: Input validation implementation
+  - Added JSON input parsing with request.get_json(silent=True)
+  - Implemented validation for required fields: deal_id, neighborhood, image_urls
+  - Return error response for missing/invalid fields
+  - Return success response with deal_id, neighborhood, and image_count
+  - Conditional client initialization for OpenAI and AWS Rekognition
+  - Handles empty image_urls arrays (returns count: 0)
+  - All test cases pass: valid payloads, missing fields, invalid JSON
+  
 - **2025-11-15**: Initial project setup
   - Created Flask application skeleton
   - Added bp_rosie_images Blueprint with stub endpoint
