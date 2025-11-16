@@ -80,7 +80,7 @@ def rosie_images():
         descriptions = _generate_descriptions(neighborhood, labels, url)
         processed.append({
             "url": url,
-            "status": "pending",
+            "status": "processed",
             "bytes_fetched": image_bytes is not None,
             "labels": labels,
             "alt_text": descriptions.get("alt_text", ""),
@@ -88,7 +88,7 @@ def rosie_images():
         })
     
     return jsonify({
-        "status": "ready",
+        "status": "ok",
         "deal_id": deal_id,
         "neighborhood": neighborhood,
         "image_count": len(image_urls),
