@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 import boto3
+import json
 import os
 import requests
 from openai import OpenAI
@@ -35,6 +36,26 @@ def _detect_labels(image_bytes):
         return labels
     except Exception:
         return []
+
+def _generate_descriptions(neighborhood, labels, url):
+    try:
+        labels_str = ", ".join(labels) if labels else "no labels detected"
+        prompt = f"Generate alt text and tooltip text for a real estate image in {neighborhood}. Detected labels: {labels_str}. Image URL: {url}. Return JSON with keys: alt_text, tooltip_text."
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+        
+        result = json.loads(response.choices[0].message.content)
+        
+        return {
+            "alt_text": result.get("alt_text", ""),
+            "tooltip_text": result.get("tooltip_text", "")
+        }
+    except Exception:
+        return {"alt_text": "", "tooltip_text": ""}
 
 bp_rosie_images = Blueprint("rosie_images", __name__)
 
