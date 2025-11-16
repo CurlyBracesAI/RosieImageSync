@@ -73,9 +73,17 @@ def rosie_images():
     if not deal_id or not neighborhood or image_urls is None:
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
+    processed = []
+    for url in image_urls:
+        processed.append({
+            "url": url,
+            "status": "pending"
+        })
+    
     return jsonify({
         "status": "ready",
         "deal_id": deal_id,
         "neighborhood": neighborhood,
-        "image_count": len(image_urls)
+        "image_count": len(image_urls),
+        "images": processed
     })
