@@ -4,16 +4,17 @@
 Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi-agent system. This service centralizes image processing for real estate deals, integrating AWS Rekognition and OpenAI to generate alt text and tooltips for property images.
 
 ## Current Status (November 16, 2025)
-**Phase**: Helper Functions Ready
+**Phase**: Output Structure Ready
 - Basic Flask application structure created
 - Blueprint skeleton in place for `/rosie-images` endpoint
 - Input validation complete: accepts deal_id, neighborhood, image_urls
-- Returns structured response with image_count
+- Returns structured response with image_count and images array
+- Route builds `processed` list with {"url": url, "status": "pending"} for each image
 - Client initialization for AWS Rekognition and OpenAI (conditional)
 - Helper function `_fetch_image_bytes(url)` added for downloading images
 - Helper function `_detect_labels(image_bytes)` added for AWS Rekognition label detection
 - Helper function `_generate_descriptions(neighborhood, labels, url)` added for OpenAI text generation
-- No image processing logic implemented yet
+- No image processing logic implemented yet (helpers exist but not called)
 
 ## Project Architecture
 
@@ -87,6 +88,14 @@ The endpoint will be called from Make.com, which will then update Pipedrive and 
 - Use existing app structure patterns
 
 ## Recent Changes
+- **2025-11-16**: Output structure preparation
+  - Modified `/rosie-images` route to build `processed` list after validation
+  - Loop over `image_urls` and append {"url": url, "status": "pending"} for each
+  - Updated response to include "images": processed array
+  - Helper functions remain unused (structure-only step)
+  - Response now returns: status, deal_id, neighborhood, image_count, images
+  - Verified with test payloads (3 URLs and empty array)
+  
 - **2025-11-16**: OpenAI description generation helper added
   - Created `_generate_descriptions(neighborhood, labels, url)` helper function
   - Builds prompt using neighborhood, detected labels, and image URL
