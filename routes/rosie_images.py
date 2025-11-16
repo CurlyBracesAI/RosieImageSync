@@ -13,6 +13,14 @@ rekognition = boto3.client(
     aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
 ) if all([os.environ.get("AWS_REGION"), os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY")]) else None
 
+def _fetch_image_bytes(url):
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        return response.content
+    except Exception:
+        return None
+
 bp_rosie_images = Blueprint("rosie_images", __name__)
 
 @bp_rosie_images.route("/rosie-images", methods=["POST"])
