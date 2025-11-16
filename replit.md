@@ -11,6 +11,7 @@ Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi
 - Returns structured response with image_count
 - Client initialization for AWS Rekognition and OpenAI (conditional)
 - Helper function `_fetch_image_bytes(url)` added for downloading images
+- Helper function `_detect_labels(image_bytes)` added for AWS Rekognition label detection
 - No image processing logic implemented yet
 
 ## Project Architecture
@@ -85,7 +86,15 @@ The endpoint will be called from Make.com, which will then update Pipedrive and 
 - Use existing app structure patterns
 
 ## Recent Changes
-- **2025-11-16**: Helper function added
+- **2025-11-16**: Label detection helper added
+  - Created `_detect_labels(image_bytes)` helper function
+  - Uses AWS Rekognition to detect labels with MaxLabels=10, MinConfidence=75
+  - Returns simple Python list of label names
+  - Includes early None check and try/except error handling
+  - Returns empty list on any error (never raises exceptions)
+  - Route behavior remains unchanged
+  
+- **2025-11-16**: Image fetching helper added
   - Created `_fetch_image_bytes(url)` helper function
   - Uses requests library to download images from URLs
   - Returns raw bytes on success, None on failure
