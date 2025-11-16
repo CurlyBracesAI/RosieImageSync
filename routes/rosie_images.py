@@ -75,9 +75,11 @@ def rosie_images():
     
     processed = []
     for url in image_urls:
+        image_bytes = _fetch_image_bytes(url)
         processed.append({
             "url": url,
-            "status": "pending"
+            "status": "pending",
+            "bytes_fetched": image_bytes is not None
         })
     
     return jsonify({
