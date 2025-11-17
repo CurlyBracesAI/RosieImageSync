@@ -61,13 +61,18 @@ bp_rosie_images = Blueprint("rosie_images", __name__)
 
 @bp_rosie_images.route("/rosie-images", methods=["POST"])
 def rosie_images():
+    print("DEBUG: Headers:", dict(request.headers))
+    print("DEBUG: Content-Type:", request.content_type)
+    print("DEBUG: Raw data:", request.data)
+    print("DEBUG: Raw data decoded:", request.data.decode('utf-8') if request.data else "No data")
+    
     data = request.get_json(silent=True)
     
-    print("DEBUG: Received data:", data)
+    print("DEBUG: Parsed JSON data:", data)
     print("DEBUG: Data type:", type(data))
     
     if data is None:
-        print("DEBUG: data is None")
+        print("DEBUG: JSON parsing returned None")
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
     deal_id = data.get("deal_id")
