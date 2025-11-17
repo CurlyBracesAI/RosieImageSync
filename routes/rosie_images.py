@@ -68,11 +68,21 @@ def rosie_images():
     
     data = request.get_json(silent=True)
     
-    print("DEBUG: Parsed JSON data:", data)
+    if data is None:
+        print("DEBUG: JSON parsing failed, trying form data")
+        data = request.form.to_dict()
+        print("DEBUG: Form data:", data)
+        if 'image_urls' in data:
+            try:
+                data['image_urls'] = json.loads(data['image_urls'])
+            except:
+                data['image_urls'] = [url.strip() for url in data['image_urls'].split(',')]
+    
+    print("DEBUG: Final parsed data:", data)
     print("DEBUG: Data type:", type(data))
     
-    if data is None:
-        print("DEBUG: JSON parsing returned None")
+    if not data:
+        print("DEBUG: No data received")
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
     deal_id = data.get("deal_id")
