@@ -96,7 +96,7 @@ Without credentials, the API still functions but returns empty arrays for labels
 - Wait for explicit instructions before implementing business logic
 - Follow exact naming conventions (bp_rosie_images, /rosie-images)
 - Use existing app structure patterns
-- **Replit Secrets Location**: Click "All tools" from the left Tool dock (icon bar), then select "Secrets". OR use the workspace search bar and type "Secrets". In the Secrets panel, use the "App Secrets" tab to add project-specific secrets. Account Secrets from your account must be linked here to be available as environment variables in this project.
+- **Replit Secrets Location**: Use the **workspace search bar** (top of workspace) and search for "Secrets". This is the most reliable method. In the Secrets panel, use the "App Secrets" tab to link Account Secrets or add new secrets. Account Secrets must be explicitly linked to each project to be available as environment variables.
 
 ## Recent Changes
 - **2025-11-17**: Make.com integration debugging and form data support
