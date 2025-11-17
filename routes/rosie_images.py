@@ -61,7 +61,20 @@ def _generate_descriptions(neighborhood, labels, url):
     
     try:
         labels_str = ", ".join(labels) if labels else "no labels detected"
-        prompt = f"Generate alt text and tooltip text for a real estate image in {neighborhood}. Detected labels: {labels_str}. Image URL: {url}. Return JSON with keys: alt_text, tooltip_text."
+        prompt = f"""Generate alt text and tooltip text for a professional office space image in {neighborhood}.
+
+IMPORTANT: This is a COMMERCIAL PROFESSIONAL OFFICE, not a residential setting.
+
+Focus on:
+- Room setting, lighting, decor, furnishings
+- Ambience and mood suitable for professional environments
+- Appeal to psychotherapy, wellness, and medical professionals
+
+Detected visual elements: {labels_str}
+
+Return JSON with keys: alt_text, tooltip_text.
+- alt_text: Descriptive text focusing on the professional office environment
+- tooltip_text: Brief marketing text highlighting the space's appeal to healthcare/wellness professionals"""
         
         response = client.chat.completions.create(
             model="gpt-4o-mini",
