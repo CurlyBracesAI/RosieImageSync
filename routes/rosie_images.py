@@ -63,14 +63,23 @@ bp_rosie_images = Blueprint("rosie_images", __name__)
 def rosie_images():
     data = request.get_json(silent=True)
     
+    print("DEBUG: Received data:", data)
+    print("DEBUG: Data type:", type(data))
+    
     if data is None:
+        print("DEBUG: data is None")
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
     deal_id = data.get("deal_id")
     neighborhood = data.get("neighborhood")
     image_urls = data.get("image_urls")
     
+    print("DEBUG: deal_id:", deal_id, "type:", type(deal_id))
+    print("DEBUG: neighborhood:", neighborhood, "type:", type(neighborhood))
+    print("DEBUG: image_urls:", image_urls, "type:", type(image_urls))
+    
     if not deal_id or not neighborhood or image_urls is None:
+        print("DEBUG: Validation failed - deal_id:", bool(deal_id), "neighborhood:", bool(neighborhood), "image_urls is None:", image_urls is None)
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
     processed = []
