@@ -3,20 +3,19 @@
 ## Overview
 Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi-agent system. This service centralizes image processing for real estate deals, integrating AWS Rekognition and OpenAI to generate alt text and tooltips for property images.
 
-## Current Status (November 16, 2025)
-**Phase**: Full Processing Pipeline Complete
-- Basic Flask application structure created
-- Blueprint skeleton in place for `/rosie-images` endpoint
-- Input validation complete: accepts deal_id, neighborhood, image_urls
-- Returns structured response with image_count and images array
-- Route calls `_fetch_image_bytes(url)` for each image and tracks success/failure
-- Route calls `_detect_labels(image_bytes)` for each image to extract labels
-- Route calls `_generate_descriptions(neighborhood, labels, url)` for each image to generate alt/tooltip text
+## Current Status (November 17, 2025)
+**Phase**: Make.com Integration Complete & Production Ready
+- Full processing pipeline operational: fetch → detect labels → generate descriptions
+- Make.com integration successfully configured and tested (10+ successful requests)
+- Endpoint accepts both JSON and form-urlencoded data formats
+- Input validation: accepts deal_id, neighborhood, image_urls
+- Returns structured JSON response with image_count and images array
 - Each image object includes: url, status, bytes_fetched, labels, alt_text, tooltip_text
-- Client initialization for AWS Rekognition and OpenAI (conditional)
-- All three helper functions integrated into processing pipeline
-- Ready for production use once API credentials are configured
-- Raw image bytes not stored in response (only boolean flag, labels, and descriptions)
+- AWS Rekognition and OpenAI client initialization (conditional on credentials)
+- All helper functions integrated and operational
+- Successfully processing real S3 URLs from Upper West Side neighborhood
+- Awaiting AWS and OpenAI credentials for live label detection and text generation
+- Raw image bytes not stored in response (memory efficient)
 
 ## Project Architecture
 
@@ -31,57 +30,66 @@ Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi
 
 ### Current Endpoints
 - `GET /` - Returns API welcome message
-- `POST /rosie-images` - Accepts deal_id, neighborhood, and image_urls; validates input and returns status with image count
+- `POST /rosie-images` - Main processing endpoint
 
 ### Blueprint Details
 - **Name**: `bp_rosie_images`
 - **Route**: `/rosie-images`
 - **Method**: POST
-- **Current Response**: `{"status": "ready"}`
+- **Input Formats**: JSON or form-urlencoded
+- **Public URL**: `https://262b6272-a512-43bd-b89f-dd45acce6b62-00-1ggs85wl8sclp.spock.replit.dev/rosie-images`
 
-## Next Phase Implementation (Not Yet Built)
-The following features are planned but not yet implemented:
+### Make.com Integration Configuration
+**HTTP Module Settings:**
+- **URL**: `https://262b6272-a512-43bd-b89f-dd45acce6b62-00-1ggs85wl8sclp.spock.replit.dev/rosie-images`
+- **Method**: `POST`
+- **Body Type**: `application/x-www-form-urlencoded`
+- **Parse response**: `Yes`
+- **Fields**:
+  - `deal_id` → `{{72. image_id}}`
+  - `neighborhood` → `{{20. File name}}`
+  - `image_urls` → `{{30. image_url}}`
 
-### Input Schema (Planned)
+## Input/Output Schemas
+
+### Input Schema
+Accepts both JSON and form-urlencoded formats:
 ```json
 {
   "deal_id": "string",
   "neighborhood": "string",
-  "image_urls": ["s3://url1", "s3://url2"]
+  "image_urls": "string or array"
 }
 ```
 
-### Output Schema (Planned)
+### Output Schema
 ```json
 {
   "status": "ok",
   "deal_id": "1234",
+  "neighborhood": "Upper West Side",
+  "image_count": 1,
   "images": [
     {
-      "url": "...",
-      "rekognition_labels": [...],
-      "alt_text": "...",
-      "tooltip_text": "..."
+      "url": "https://...",
+      "status": "processed",
+      "bytes_fetched": true,
+      "labels": ["Building", "Architecture", ...],
+      "alt_text": "Modern apartment building...",
+      "tooltip_text": "Luxury residence in..."
     }
   ]
 }
 ```
 
-### Planned Components
-1. AWS Rekognition integration via boto3
-2. OpenAI integration for text generation
-3. S3 image fetching
-4. Error handling and validation
-5. Environment variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, OPENAI_API_KEY
+### Environment Variables
+Required for full functionality:
+- `AWS_ACCESS_KEY_ID` - AWS credentials for Rekognition
+- `AWS_SECRET_ACCESS_KEY` - AWS credentials for Rekognition  
+- `AWS_REGION` - AWS region (e.g., us-east-2)
+- `OPENAI_API_KEY` - OpenAI API key for text generation
 
-## Integration with Make.com
-This API will replace parts of the existing Make.com scenario that currently handles:
-- S3 image retrieval
-- AWS Rekognition label detection
-- OpenAI text generation
-- JSON formatting
-
-The endpoint will be called from Make.com, which will then update Pipedrive and push to Wix.
+Without credentials, the API still functions but returns empty arrays for labels and empty strings for alt_text/tooltip_text.
 
 ## User Preferences
 - Incremental development approach
@@ -90,6 +98,16 @@ The endpoint will be called from Make.com, which will then update Pipedrive and 
 - Use existing app structure patterns
 
 ## Recent Changes
+- **2025-11-17**: Make.com integration debugging and form data support
+  - Added fallback to parse form-urlencoded data when JSON parsing fails
+  - Handles both JSON and form data formats seamlessly
+  - Auto-converts image_urls from string to array format
+  - Successfully tested with 10+ real requests from Make.com
+  - All requests returning HTTP 200 with proper data parsing
+  - Make.com configuration documented: application/x-www-form-urlencoded with three fields
+  - Removed debug logging after successful integration verification
+  - API fully operational and processing real S3 URLs from Upper West Side deals
+
 - **2025-11-16**: Description generation integration
   - Modified loop to call `_generate_descriptions(neighborhood, labels, url)` after detecting labels
   - Added `alt_text` and `tooltip_text` fields to each image object

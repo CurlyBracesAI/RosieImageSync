@@ -61,40 +61,24 @@ bp_rosie_images = Blueprint("rosie_images", __name__)
 
 @bp_rosie_images.route("/rosie-images", methods=["POST"])
 def rosie_images():
-    print("DEBUG: Headers:", dict(request.headers))
-    print("DEBUG: Content-Type:", request.content_type)
-    print("DEBUG: Raw data:", request.data)
-    print("DEBUG: Raw data decoded:", request.data.decode('utf-8') if request.data else "No data")
-    
     data = request.get_json(silent=True)
     
     if data is None:
-        print("DEBUG: JSON parsing failed, trying form data")
         data = request.form.to_dict()
-        print("DEBUG: Form data:", data)
         if 'image_urls' in data:
             try:
                 data['image_urls'] = json.loads(data['image_urls'])
             except:
                 data['image_urls'] = [url.strip() for url in data['image_urls'].split(',')]
     
-    print("DEBUG: Final parsed data:", data)
-    print("DEBUG: Data type:", type(data))
-    
     if not data:
-        print("DEBUG: No data received")
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
     deal_id = data.get("deal_id")
     neighborhood = data.get("neighborhood")
     image_urls = data.get("image_urls")
     
-    print("DEBUG: deal_id:", deal_id, "type:", type(deal_id))
-    print("DEBUG: neighborhood:", neighborhood, "type:", type(neighborhood))
-    print("DEBUG: image_urls:", image_urls, "type:", type(image_urls))
-    
     if not deal_id or not neighborhood or image_urls is None:
-        print("DEBUG: Validation failed - deal_id:", bool(deal_id), "neighborhood:", bool(neighborhood), "image_urls is None:", image_urls is None)
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
     processed = []
