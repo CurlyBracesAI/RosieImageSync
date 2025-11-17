@@ -5,14 +5,27 @@ import os
 import requests
 from openai import OpenAI
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY")) if os.environ.get("OPENAI_API_KEY") else None
+def _get_openai_client():
+    """Lazy-load OpenAI client to pick up secrets at runtime"""
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if api_key:
+        return OpenAI(api_key=api_key)
+    return None
 
-rekognition = boto3.client(
-    "rekognition",
-    region_name=os.environ.get("AWS_REGION"),
-    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-) if all([os.environ.get("AWS_REGION"), os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY")]) else None
+def _get_rekognition_client():
+    """Lazy-load AWS Rekognition client to pick up secrets at runtime"""
+    region = os.environ.get("AWS_REGION")
+    access_key = os.environ.get("AWS_ACCESS_KEY_ID")
+    secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    
+    if all([region, access_key, secret_key]):
+        return boto3.client(
+            "rekognition",
+            region_name=region,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+        )
+    return None
 
 def _fetch_image_bytes(url):
     try:
@@ -24,6 +37,10 @@ def _fetch_image_bytes(url):
 
 def _detect_labels(image_bytes):
     if image_bytes is None:
+        return []
+    
+    rekognition = _get_rekognition_client()
+    if not rekognition:
         return []
     
     try:
@@ -38,6 +55,10 @@ def _detect_labels(image_bytes):
         return []
 
 def _generate_descriptions(neighborhood, labels, url):
+    client = _get_openai_client()
+    if not client:
+        return {"alt_text": "", "tooltip_text": ""}
+    
     try:
         labels_str = ", ".join(labels) if labels else "no labels detected"
         prompt = f"Generate alt text and tooltip text for a real estate image in {neighborhood}. Detected labels: {labels_str}. Image URL: {url}. Return JSON with keys: alt_text, tooltip_text."
