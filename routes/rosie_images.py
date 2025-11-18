@@ -65,7 +65,7 @@ def _generate_descriptions(neighborhood, labels, url):
 
 Detected elements: {labels_str}
 Location: {neighborhood}
-Property type: Professional office space for therapists, wellness and medical professionals
+Property type: Professional office space for psychotherapists, wellness and medical professionals
 
 CRITICAL RULES:
 - Keep descriptions SHORT and FACTUAL - describe only what's visible
@@ -77,7 +77,7 @@ CRITICAL RULES:
 
 Return JSON with:
 - alt_text: VERY SHORT - exactly 8-14 words. Describe the scene functionally for screen readers.
-- tooltip_text: Slightly longer - exactly 20-30 words. More descriptive but still lean and factual.
+- tooltip_text: Slightly longer - exactly 20-30 words. More descriptive for the website visitor, but still lean and factual.
 
 Example variations (all good - notice different structures):
 {{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office building in {neighborhood} with accessible entrance and reception space for therapy and medical practices."}}
