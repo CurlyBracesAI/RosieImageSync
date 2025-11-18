@@ -256,7 +256,8 @@ Example BAD (promotional or repetitive):
             response_format={"type": "json_object"}
         )
         
-        result = json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content or "{}"
+        result = json.loads(content)
         
         return {
             "alt_text": result.get("alt_text", ""),
@@ -274,10 +275,12 @@ def rosie_images():
     if data is None:
         data = request.form.to_dict()
         if 'image_urls' in data:
+            image_urls_str = data['image_urls']
             try:
-                data['image_urls'] = json.loads(data['image_urls'])
+                data['image_urls'] = json.loads(image_urls_str) if isinstance(image_urls_str, str) else image_urls_str
             except:
-                data['image_urls'] = [url.strip() for url in data['image_urls'].split(',')]
+                if isinstance(image_urls_str, str):
+                    data['image_urls'] = [url.strip() for url in image_urls_str.split(',')]
     
     if not data:
         print(f"ERROR: No data received")

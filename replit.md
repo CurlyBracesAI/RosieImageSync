@@ -113,6 +113,15 @@ Without credentials, the API still functions but returns empty arrays for labels
 - **Replit Secrets Location**: Use the **workspace search bar** (top of workspace) and search for "Secrets". This is the most reliable method. In the Secrets panel, use the "App Secrets" tab to link Account Secrets or add new secrets. Account Secrets must be explicitly linked to each project to be available as environment variables.
 
 ## Recent Changes
+- **2025-11-18**: S3 image file renaming for auto-detection
+  - Renamed ALL image files in West Village and Brooklyn | Queens to sequential numbers
+  - West Village: 15 deals, 200+ images renamed (1.jpg, 2.jpeg, 3.pdf, etc.)
+  - Brooklyn | Queens: 11 deals, 100+ images renamed
+  - Files now follow pattern: 1.jpeg, 2.pdf, 3.jpg, 4.webp (preserves extensions)
+  - API auto-detects picture_number from filename for smart caching
+  - Smart caching now works: checks Pipedrive slots before processing
+  - No Make.com counter needed - filenames already sequential
+
 - **2025-11-18**: S3 folder structure standardization completed
   - Successfully restructured ALL S3 neighborhoods to use numeric deal IDs (matching UWS/UES format)
   - Brooklyn | Queens: Renamed 11 address-based folders to numeric deal IDs, deleted 4 dead folders
