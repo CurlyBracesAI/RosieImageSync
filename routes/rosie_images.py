@@ -9,6 +9,43 @@ def _get_pipedrive_api_token():
     """Get Pipedrive API token from environment"""
     return os.environ.get("PIPEDRIVE_API_TOKEN")
 
+def _lookup_deal_id_by_address(address):
+    """Look up Pipedrive deal ID by searching for address in deal title
+    
+    Args:
+        address: Address string to search for (e.g., "104 1st Place")
+    
+    Returns:
+        Deal ID (int) if found, None otherwise
+    """
+    token = _get_pipedrive_api_token()
+    if not token:
+        return None
+    
+    try:
+        response = requests.get(
+            "https://api.pipedrive.com/v1/deals",
+            params={
+                "api_token": token,
+                "term": address,
+                "limit": 1
+            }
+        )
+        response.raise_for_status()
+        data = response.json().get("data", {})
+        
+        if data and "items" in data and len(data["items"]) > 0:
+            deal = data["items"][0]
+            deal_id = deal.get("item", {}).get("id")
+            print(f"Found deal ID {deal_id} for address '{address}'")
+            return deal_id
+        
+        print(f"No deal found for address '{address}'")
+        return None
+    except Exception as e:
+        print(f"Error looking up deal by address '{address}': {e}")
+        return None
+
 def _get_pipedrive_field_keys():
     """Get Pipedrive custom field keys for Alt Text and Tooltip fields"""
     token = _get_pipedrive_api_token()
@@ -290,6 +327,22 @@ def rosie_images():
     
     if not deal_id or not neighborhood or image_urls is None:
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
+    
+    # Auto-detect if deal_id is actually an address and look up the real deal_id
+    # If deal_id is numeric, use it directly. If it contains non-numeric chars (spaces, letters), treat as address
+    try:
+        deal_id = int(deal_id)
+    except (ValueError, TypeError):
+        # deal_id is not a number, treat it as an address and look up in Pipedrive
+        print(f"deal_id '{deal_id}' appears to be an address, looking up in Pipedrive...")
+        looked_up_id = _lookup_deal_id_by_address(str(deal_id))
+        if looked_up_id:
+            deal_id = looked_up_id
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"Could not find deal in Pipedrive with address '{deal_id}'"
+            }), 404
     
     # Validate picture_number if provided
     if picture_number is not None:

@@ -69,7 +69,7 @@ Accepts both JSON and form-urlencoded formats:
 ```
 
 **Parameters:**
-- `deal_id` - Pipedrive deal ID (required)
+- `deal_id` - Pipedrive deal ID OR property address (required). Auto-detects format: if numeric (e.g., "2560"), uses directly; if text (e.g., "104 1st Place"), looks up deal_id in Pipedrive automatically
 - `neighborhood` - Neighborhood name or full path (required)
 - `image_urls` - Single URL or array of URLs (required)
 - `picture_number` - Specific picture slot (1-10) to update. Auto-detected from filename if not provided (optional)
@@ -112,6 +112,15 @@ Without credentials, the API still functions but returns empty arrays for labels
 - **Replit Secrets Location**: Use the **workspace search bar** (top of workspace) and search for "Secrets". This is the most reliable method. In the Secrets panel, use the "App Secrets" tab to link Account Secrets or add new secrets. Account Secrets must be explicitly linked to each project to be available as environment variables.
 
 ## Recent Changes
+- **2025-11-18**: Address-to-Deal ID auto-lookup for mixed S3 folder structures
+  - Added automatic Pipedrive lookup when deal_id contains non-numeric characters (addresses)
+  - Supports mixed S3 folder structures: numeric deal IDs (UES, UWS, Midtown East) and address folders (Brooklyn | Queens, West Village)
+  - API auto-detects format: if numeric → uses directly, if text → searches Pipedrive for matching deal
+  - Handles legacy folder naming: "104 1st Place" → looks up deal ID automatically
+  - No Make.com changes required: send folder name as deal_id, API handles the rest
+  - Returns 404 error if address not found in Pipedrive with clear error message
+  - Tested with mixed neighborhood structures successfully
+
 - **2025-11-18**: Pipedrive integration with smart caching
   - Implemented automatic Pipedrive updates: API now updates "Deal - Alt Text Pic 1-10" and "Deal - Tooltip Pic 1-10" fields directly
   - Added smart caching: checks Pipedrive before processing each image to skip already-populated slots
