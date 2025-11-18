@@ -128,6 +128,12 @@ def rosie_images():
     if not deal_id or not neighborhood or image_urls is None:
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
+    # Clean neighborhood: extract just the neighborhood name from path like "Neighborhood Listing Images/Upper West Side/2560/1.jpg"
+    if "/" in neighborhood:
+        parts = neighborhood.split("/")
+        if len(parts) >= 2 and parts[0] == "Neighborhood Listing Images":
+            neighborhood = parts[1]
+    
     processed = []
     for url in image_urls:
         image_bytes = _fetch_image_bytes(url)
