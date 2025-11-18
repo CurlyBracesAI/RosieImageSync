@@ -56,6 +56,49 @@ def _get_pipedrive_field_keys():
         print(f"Error fetching Pipedrive field keys: {e}")
         return None
 
+def _check_pipedrive_slot_populated(deal_id, picture_number):
+    """Check if a specific picture slot already has alt_text and tooltip_text populated
+    
+    Args:
+        deal_id: Pipedrive deal ID
+        picture_number: Picture slot to check (1-10)
+    
+    Returns:
+        dict with {alt_text: str, tooltip_text: str} if populated, None otherwise
+    """
+    if picture_number is None or picture_number < 1 or picture_number > 10:
+        return None
+    
+    token = _get_pipedrive_api_token()
+    if not token:
+        return None
+    
+    field_map = _get_pipedrive_field_keys()
+    if not field_map or picture_number not in field_map:
+        return None
+    
+    try:
+        response = requests.get(
+            f"https://api.pipedrive.com/v1/deals/{deal_id}",
+            params={"api_token": token}
+        )
+        response.raise_for_status()
+        deal_data = response.json().get("data", {})
+        
+        alt_key = field_map[picture_number].get("alt")
+        tooltip_key = field_map[picture_number].get("tooltip")
+        
+        alt_text = deal_data.get(alt_key, "").strip() if alt_key else ""
+        tooltip_text = deal_data.get(tooltip_key, "").strip() if tooltip_key else ""
+        
+        if alt_text and tooltip_text:
+            return {"alt_text": alt_text, "tooltip_text": tooltip_text}
+        
+        return None
+    except Exception as e:
+        print(f"Error checking Pipedrive deal {deal_id}: {e}")
+        return None
+
 def _update_pipedrive_deal(deal_id, images, picture_number=None):
     """Update Pipedrive deal with alt text and tooltip data
     
@@ -255,6 +298,41 @@ def rosie_images():
         if len(parts) >= 2 and parts[0] == "Neighborhood Listing Images":
             neighborhood = parts[1]
     
+    # Auto-detect picture_number from URL if not provided
+    # URL format: .../2560/1.jpeg or .../2560/2.jpeg
+    if picture_number is None and len(image_urls) == 1:
+        try:
+            url_path = image_urls[0].split('/')[-1]
+            filename = url_path.split('.')[0]
+            picture_number = int(filename)
+            if picture_number < 1 or picture_number > 10:
+                picture_number = None
+        except (ValueError, IndexError):
+            picture_number = None
+    
+    # Check if this picture slot is already populated (skip expensive processing)
+    existing_data = _check_pipedrive_slot_populated(deal_id, picture_number)
+    if existing_data:
+        print(f"Skipping deal {deal_id}, picture slot {picture_number} - already populated")
+        return jsonify({
+            "status": "ok",
+            "deal_id": deal_id,
+            "neighborhood": neighborhood,
+            "image_count": len(image_urls),
+            "picture_number": picture_number,
+            "images": [{
+                "url": image_urls[0] if image_urls else "",
+                "status": "cached",
+                "bytes_fetched": True,
+                "labels": [],
+                "alt_text": existing_data["alt_text"],
+                "tooltip_text": existing_data["tooltip_text"]
+            }],
+            "pipedrive_updated": False,
+            "cached": True
+        })
+    
+    # Process images normally
     processed = []
     for url in image_urls:
         image_bytes = _fetch_image_bytes(url)
@@ -268,18 +346,6 @@ def rosie_images():
             "alt_text": descriptions.get("alt_text", ""),
             "tooltip_text": descriptions.get("tooltip_text", "")
         })
-    
-    # Auto-detect picture_number from URL if not provided
-    # URL format: .../2560/1.jpeg or .../2560/2.jpeg
-    if picture_number is None and len(image_urls) == 1:
-        try:
-            url_path = image_urls[0].split('/')[-1]
-            filename = url_path.split('.')[0]
-            picture_number = int(filename)
-            if picture_number < 1 or picture_number > 10:
-                picture_number = None
-        except (ValueError, IndexError):
-            picture_number = None
     
     # Update Pipedrive with alt text and tooltip data
     pipedrive_updated = _update_pipedrive_deal(deal_id, processed, picture_number)
