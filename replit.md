@@ -18,7 +18,8 @@ Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi
 - **Smart Caching**: Checks Pipedrive before processing - skips already-populated slots to save costs
 - **Auto-Detection**: Extracts picture number (1-10) from URL filename automatically
 - **Idempotent**: Safe to retry/restart Make.com scenarios without reprocessing completed images
-- Processing all neighborhoods: Upper West Side, Upper East Side, West Village, Midtown East, etc.
+- **S3 Structure Standardized**: All neighborhoods now use numeric deal IDs (matches UWS/UES format)
+- Processing all neighborhoods: Upper West Side, Upper East Side, West Village, Midtown East, Brooklyn, Queens
 - Ready for Wix integration (next phase)
 
 ## Project Architecture
@@ -69,7 +70,7 @@ Accepts both JSON and form-urlencoded formats:
 ```
 
 **Parameters:**
-- `deal_id` - Pipedrive deal ID OR property address (required). Auto-detects format: if numeric (e.g., "2560"), uses directly; if text (e.g., "104 1st Place"), looks up deal_id in Pipedrive automatically
+- `deal_id` - Pipedrive deal ID (numeric, required). Example: "2560"
 - `neighborhood` - Neighborhood name or full path (required)
 - `image_urls` - Single URL or array of URLs (required)
 - `picture_number` - Specific picture slot (1-10) to update. Auto-detected from filename if not provided (optional)
@@ -112,14 +113,16 @@ Without credentials, the API still functions but returns empty arrays for labels
 - **Replit Secrets Location**: Use the **workspace search bar** (top of workspace) and search for "Secrets". This is the most reliable method. In the Secrets panel, use the "App Secrets" tab to link Account Secrets or add new secrets. Account Secrets must be explicitly linked to each project to be available as environment variables.
 
 ## Recent Changes
-- **2025-11-18**: Address-to-Deal ID auto-lookup for mixed S3 folder structures
-  - Added automatic Pipedrive lookup when deal_id contains non-numeric characters (addresses)
-  - Supports mixed S3 folder structures: numeric deal IDs (UES, UWS, Midtown East) and address folders (Brooklyn | Queens, West Village)
-  - API auto-detects format: if numeric → uses directly, if text → searches Pipedrive for matching deal
-  - Handles legacy folder naming: "104 1st Place" → looks up deal ID automatically
-  - No Make.com changes required: send folder name as deal_id, API handles the rest
-  - Returns 404 error if address not found in Pipedrive with clear error message
-  - Tested with mixed neighborhood structures successfully
+- **2025-11-18**: S3 folder structure standardization completed
+  - Successfully restructured ALL S3 neighborhoods to use numeric deal IDs (matching UWS/UES format)
+  - Brooklyn | Queens: Renamed 11 address-based folders to numeric deal IDs, deleted 4 dead folders
+  - West Village (UnSQ:Gren'Villl.): Renamed 15 address-based folders to numeric deal IDs
+  - Used Pipedrive CSV export as master data source for address → deal_id mapping
+  - Created restructure_s3_with_csv.py script with fuzzy matching algorithm (0.7+ confidence threshold)
+  - Manual overrides applied for edge cases (172 Crown Heights, 80 5th Ave, 150 W 25th)
+  - Removed temporary address lookup logic from API (no longer needed)
+  - ALL neighborhoods now follow same folder naming convention: Pipedrive deal ID only
+  - Ready for consistent Make.com automation across all neighborhoods
 
 - **2025-11-18**: Pipedrive integration with smart caching
   - Implemented automatic Pipedrive updates: API now updates "Deal - Alt Text Pic 1-10" and "Deal - Tooltip Pic 1-10" fields directly
