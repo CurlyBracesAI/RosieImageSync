@@ -241,10 +241,14 @@ def rosie_images():
             "tooltip_text": descriptions.get("tooltip_text", "")
         })
     
+    # Update Pipedrive with alt text and tooltip data
+    pipedrive_updated = _update_pipedrive_deal(deal_id, processed)
+    
     return jsonify({
         "status": "ok",
         "deal_id": deal_id,
         "neighborhood": neighborhood,
         "image_count": len(image_urls),
-        "images": processed
+        "images": processed,
+        "pipedrive_updated": pipedrive_updated
     })
