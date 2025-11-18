@@ -269,6 +269,18 @@ def rosie_images():
             "tooltip_text": descriptions.get("tooltip_text", "")
         })
     
+    # Auto-detect picture_number from URL if not provided
+    # URL format: .../2560/1.jpeg or .../2560/2.jpeg
+    if picture_number is None and len(image_urls) == 1:
+        try:
+            url_path = image_urls[0].split('/')[-1]
+            filename = url_path.split('.')[0]
+            picture_number = int(filename)
+            if picture_number < 1 or picture_number > 10:
+                picture_number = None
+        except (ValueError, IndexError):
+            picture_number = None
+    
     # Update Pipedrive with alt text and tooltip data
     pipedrive_updated = _update_pipedrive_deal(deal_id, processed, picture_number)
     
