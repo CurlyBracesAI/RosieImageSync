@@ -61,22 +61,27 @@ def _generate_descriptions(neighborhood, labels, url):
     
     try:
         labels_str = ", ".join(labels) if labels else "no labels detected"
-        prompt = f"""Generate alt text and tooltip text for a commercial property image in {neighborhood}.
+        prompt = f"""Generate simple, factual descriptions for a commercial office property image.
 
-CONTEXT: This property houses professional offices for psychotherapy, wellness, and medical professionals. This is COMMERCIAL real estate, not residential.
+Detected elements: {labels_str}
+Location: {neighborhood}
+Property type: Professional office space for therapists and medical professionals
 
-DETECTED VISUAL ELEMENTS: {labels_str}
+CRITICAL RULES:
+- Keep descriptions SHORT and FACTUAL - describe only what's visible
+- Use the detected elements directly, don't embellish or add promotional language
+- NO flowery language, NO selling, NO assumptions beyond what's detected
+- Be professional and descriptive, not promotional
 
-INSTRUCTIONS:
-- Base your description on what the visual elements actually show (building exterior, interior office, lobby, hallway, etc.)
-- If it's an exterior: describe the building, architecture, location, accessibility
-- If it's an interior: describe room setting, lighting, decor, furnishings, ambience, mood
-- Maintain professional tone suitable for healthcare/wellness professionals
-- DO NOT invent details not supported by the detected visual elements
+Return JSON with:
+- alt_text: Brief factual description of what's shown (1-2 sentences max)
+- tooltip_text: Very short descriptor (5-10 words max)
 
-Return JSON with keys: alt_text, tooltip_text.
-- alt_text: Accurate description based on detected visual elements
-- tooltip_text: Brief marketing text relevant to what's actually shown in the image"""
+Example good output:
+{{"alt_text": "Building exterior with windows and entrance", "tooltip_text": "Professional office building in {neighborhood}"}}
+
+Example BAD output (too promotional):
+{{"alt_text": "Experience this stunning architectural masterpiece...", "tooltip_text": "Your dream office awaits!"}}"""
         
         response = client.chat.completions.create(
             model="gpt-4o-mini",

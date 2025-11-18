@@ -1,0 +1,137 @@
+import boto3
+import pandas as pd
+import time
+import random
+
+# AWS Configuration
+AWS_REGION = "us-east-2"
+S3_BUCKET = "neighborhood-listing-images"
+
+# Initialize AWS clients
+rekognition = boto3.client('rekognition', region_name=AWS_REGION)
+
+# Input and Output Files
+INPUT_CSV = "deals.xlsx"
+OUTPUT_CSV = "deals_updated.xlsx"
+
+# Read the Excel file
+df = pd.read_excel(INPUT_CSV)
+
+# Identify relevant columns
+image_columns = [col for col in df.columns if "Pict" in col]
+alt_columns = [col for col in df.columns if "Alt" in col]
+tooltip_columns = [col for col in df.columns if "Tool" in col]
+
+# Expanded Descriptions of Amenities
+descriptions_of_amenities = [
+    "featuring natural light and spacious interiors",
+    "with cozy, inviting atmospheres ideal for therapy sessions",
+    "offering modern design and essential amenities for professionals",
+    "close to public transport for client convenience",
+    "in a quiet and serene environment perfect for counseling",
+    "with functional layouts, ideal for client confidentiality",
+    "providing access to shared common areas and lounges",
+    "beautifully furnished with comfortable seating for clients",
+    "equipped with Wi-Fi, storage, and welcoming decor",
+    "designed to enhance focus and client comfort",
+    "featuring soft lighting and calming colors",
+    "with ergonomic furniture designed for client comfort",
+    "offering ample space for group therapy or workshops",
+    "decorated with plants and natural elements for a serene feel",
+    "featuring artfully arranged seating for relaxed conversations",
+    "with a welcoming reception area for clients",
+    "boasting modern furniture and soundproof walls for privacy",
+    "designed with warm tones to create a soothing atmosphere",
+    "featuring flexible layouts suitable for various therapy styles",
+    "close to coffee shops and amenities for added convenience"
+]
+
+# Expanded Alt Text Templates
+alt_text_templates = [
+    "Explore {keyword} in {neighborhood}, a serene space for {profession}. {amenities}.",
+    "Discover {keyword} in {neighborhood}, tailored for {profession} with {amenities}.",
+    "{keyword} in {neighborhood}, designed for {profession} seeking {amenities}.",
+    "Experience {keyword} in {neighborhood}, offering {amenities} for {profession}.",
+    "Find {keyword} in {neighborhood}, a professional space with {amenities} for {profession}.",
+    "Uncover {keyword} in {neighborhood}, designed for {profession}, with {amenities}.",
+    "Your ideal {keyword} in {neighborhood} awaits, featuring {amenities} for {profession}.",
+    "Step into {keyword} in {neighborhood}, perfect for {profession} and {amenities}.",
+    "Discover {keyword} in {neighborhood}, complete with {amenities}. Ideal for {profession}.",
+    "Step into {keyword} in {neighborhood}, featuring {amenities} for {profession}.",
+    "Explore {keyword} in {neighborhood} with {amenities}, designed for {profession}.",
+    "Experience {keyword} in {neighborhood}, perfect for {profession} seeking {amenities}.",
+    "Find {keyword} near {neighborhood}, offering {amenities} for {profession}.",
+    "Uncover {keyword} in {neighborhood}, with a focus on {amenities} for {profession}.",
+    "Elevate your practice with {keyword} in {neighborhood}, providing {amenities} for {profession}.",
+    "Flexible {keyword} in {neighborhood} awaits, tailored with {amenities} for {profession}."
+]
+
+# Expanded Tooltip Templates
+tooltip_templates = [
+    "Explore {keyword} in {neighborhood} for {profession}.",
+    "Find {keyword} near {neighborhood}, ideal for {profession}.",
+    "Discover serene spaces for {profession} in {neighborhood}.",
+    "Flexible {keyword} options available in {neighborhood} for {profession}.",
+    "Locate ideal {keyword} in {neighborhood}, designed for {profession}.",
+    "Find perfect {keyword} spaces in {neighborhood} for {profession}.",
+    "Effortlessly discover {keyword} in {neighborhood}, tailored for {profession}.",
+    "Browse {keyword} in {neighborhood}, optimized for {profession}.",
+    "Discover unique {keyword} in {neighborhood}, ideal for {profession}.",
+    "Find {keyword} in {neighborhood}, tailored for {profession}.",
+    "Locate flexible {keyword} near {neighborhood} for {profession}.",
+    "Browse professional {keyword} spaces in {neighborhood}, perfect for {profession}.",
+    "Explore customizable {keyword} in {neighborhood} for {profession}.",
+    "Ideal {keyword} for {profession} in {neighborhood}, designed to inspire.",
+    "Professional {keyword} options near {neighborhood}, suited for {profession}.",
+    "Elevate your practice with {keyword} in {neighborhood}, ideal for {profession}."
+]
+
+# Primary Keywords
+primary_keywords = [
+    "flexible office space", "therapist office rental", "therapy office rentals",
+    "therapist office space", "psychotherapy office rental"
+]
+
+def get_image_labels(s3_key):
+    """Uses AWS Rekognition to analyze an image stored in S3 and return labels."""
+    try:
+        response = rekognition.detect_labels(
+            Image={"S3Object": {"Bucket": S3_BUCKET, "Name": s3_key}},
+            MaxLabels=5,
+            MinConfidence=75
+        )
+        labels = [label["Name"] for label in response["Labels"]]
+        return labels
+    except Exception as e:
+        print(f"Error analyzing {s3_key}: {str(e)}")
+        return []
+
+# Process each row
+for idx, row in df.iterrows():
+    neighborhood = row.get("Deal - Neig", "Upper East Side, NYC")
+    profession = "therapists"
+    keyword = random.choice(primary_keywords)
+    
+    for i, img_col in enumerate(image_columns):
+        img_url = row[img_col]
+        
+        if pd.isna(img_url) or not isinstance(img_url, str) or "amazonaws.com" not in img_url:
+            continue  # Skip invalid URLs
+        
+        s3_key = img_url.split(".com/")[-1]
+        
+        print(f"Processing: {s3_key}...")
+        labels = get_image_labels(s3_key)
+        detected_features = ", ".join(labels) if labels else random.choice(descriptions_of_amenities)
+        
+        # Generate alt text and tooltip text
+        alt_text = random.choice(alt_text_templates).format(keyword=keyword, neighborhood=neighborhood, profession=profession, amenities=detected_features)
+        tooltip_text = random.choice(tooltip_templates).format(keyword=keyword, neighborhood=neighborhood, profession=profession)
+        
+        df.at[idx, alt_columns[i]] = alt_text
+        df.at[idx, tooltip_columns[i]] = tooltip_text
+        time.sleep(0.5)
+
+# Save the updated file
+df.to_excel(OUTPUT_CSV, index=False)
+print(f"\n✅ Processing complete! Updated file saved as: {OUTPUT_CSV}")
