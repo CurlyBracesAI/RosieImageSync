@@ -88,8 +88,8 @@ def _check_pipedrive_slot_populated(deal_id, picture_number):
         alt_key = field_map[picture_number].get("alt")
         tooltip_key = field_map[picture_number].get("tooltip")
         
-        alt_text = deal_data.get(alt_key, "").strip() if alt_key else ""
-        tooltip_text = deal_data.get(tooltip_key, "").strip() if tooltip_key else ""
+        alt_text = (deal_data.get(alt_key) or "").strip() if alt_key else ""
+        tooltip_text = (deal_data.get(tooltip_key) or "").strip() if tooltip_key else ""
         
         if alt_text and tooltip_text:
             return {"alt_text": alt_text, "tooltip_text": tooltip_text}
