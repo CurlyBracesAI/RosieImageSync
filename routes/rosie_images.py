@@ -67,14 +67,17 @@ def _check_pipedrive_slot_populated(deal_id, picture_number):
         dict with {alt_text: str, tooltip_text: str} if populated, None otherwise
     """
     if picture_number is None or picture_number < 1 or picture_number > 10:
+        print(f"Cache check failed: invalid picture_number {picture_number}")
         return None
     
     token = _get_pipedrive_api_token()
     if not token:
+        print(f"Cache check failed: no Pipedrive token")
         return None
     
     field_map = _get_pipedrive_field_keys()
     if not field_map or picture_number not in field_map:
+        print(f"Cache check failed: field_map issue - field_map exists: {field_map is not None}, picture_number in map: {picture_number in field_map if field_map else False}")
         return None
     
     try:
@@ -91,9 +94,13 @@ def _check_pipedrive_slot_populated(deal_id, picture_number):
         alt_text = (deal_data.get(alt_key) or "").strip() if alt_key else ""
         tooltip_text = (deal_data.get(tooltip_key) or "").strip() if tooltip_key else ""
         
+        print(f"Cache check for deal {deal_id} pic {picture_number}: alt_text='{alt_text[:30] if alt_text else ''}...', tooltip_text='{tooltip_text[:30] if tooltip_text else ''}...'")
+        
         if alt_text and tooltip_text:
+            print(f"✓ Both fields populated, returning cached data")
             return {"alt_text": alt_text, "tooltip_text": tooltip_text}
         
+        print(f"✗ Cache miss: alt_text empty={not alt_text}, tooltip_text empty={not tooltip_text}")
         return None
     except Exception as e:
         print(f"Error checking Pipedrive deal {deal_id}: {e}")
@@ -326,9 +333,10 @@ def rosie_images():
     
     # Check if this picture slot is already populated (skip expensive processing)
     # Skip cache check if force_refresh is true
+    print(f"Checking cache for deal {deal_id}, picture {picture_number}, force_refresh={force_refresh}")
     existing_data = None if force_refresh else _check_pipedrive_slot_populated(deal_id, picture_number)
     if existing_data:
-        print(f"Skipping deal {deal_id}, picture slot {picture_number} - already populated")
+        print(f"✓ CACHE HIT: Skipping deal {deal_id}, picture slot {picture_number} - already populated")
         return jsonify({
             "status": "ok",
             "deal_id": deal_id,
