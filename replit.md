@@ -3,19 +3,20 @@
 ## Overview
 Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi-agent system. This service centralizes image processing for real estate deals, integrating AWS Rekognition and OpenAI to generate alt text and tooltips for property images.
 
-## Current Status (November 17, 2025)
-**Phase**: Make.com Integration Complete & Production Ready
-- Full processing pipeline operational: fetch → detect labels → generate descriptions
+## Current Status (November 18, 2025)
+**Phase**: AI Pipeline Optimized & Production Ready
+- Full AI processing pipeline operational: fetch → AWS Rekognition labels → OpenAI descriptions
+- All AWS and OpenAI credentials configured and active
+- OpenAI prompt optimized for commercial professional office spaces
+- Alt text: 8-14 words, short and functional for screen readers
+- Tooltip text: 20-30 words, descriptive but lean and factual
+- Descriptions are factual, varied structure, no promotional language
+- Neighborhood parsing: extracts clean name from full file paths
 - Make.com integration successfully configured and tested (10+ successful requests)
 - Endpoint accepts both JSON and form-urlencoded data formats
-- Input validation: accepts deal_id, neighborhood, image_urls
 - Returns structured JSON response with image_count and images array
 - Each image object includes: url, status, bytes_fetched, labels, alt_text, tooltip_text
-- AWS Rekognition and OpenAI client initialization (conditional on credentials)
-- All helper functions integrated and operational
-- Successfully processing real S3 URLs from Upper West Side neighborhood
-- Awaiting AWS and OpenAI credentials for live label detection and text generation
-- Raw image bytes not stored in response (memory efficient)
+- Ready for Pipedrive and Wix integration (next phase)
 
 ## Project Architecture
 
@@ -99,6 +100,16 @@ Without credentials, the API still functions but returns empty arrays for labels
 - **Replit Secrets Location**: Use the **workspace search bar** (top of workspace) and search for "Secrets". This is the most reliable method. In the Secrets panel, use the "App Secrets" tab to link Account Secrets or add new secrets. Account Secrets must be explicitly linked to each project to be available as environment variables.
 
 ## Recent Changes
+- **2025-11-18**: OpenAI prompt optimization and neighborhood parsing
+  - Updated OpenAI prompt to focus on commercial professional office spaces (not residential)
+  - Optimized description lengths: alt_text 8-14 words, tooltip_text 20-30 words
+  - Added structural variation examples to avoid repetitive descriptions
+  - Enforced factual, descriptive tone with no promotional/flowery language
+  - Added neighborhood path parsing to extract clean names from "Neighborhood Listing Images/Upper West Side/2560/1.jpg" → "Upper West Side"
+  - Instructions emphasize using detected Rekognition labels as primary driver for descriptions
+  - All credentials (AWS Rekognition, OpenAI) now active and operational
+  - Tested with real Make.com data and confirmed accurate, varied descriptions
+  
 - **2025-11-17**: Make.com integration debugging and form data support
   - Added fallback to parse form-urlencoded data when JSON parsing fails
   - Handles both JSON and form data formats seamlessly
