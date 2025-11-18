@@ -4,19 +4,22 @@
 Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi-agent system. This service centralizes image processing for real estate deals, integrating AWS Rekognition and OpenAI to generate alt text and tooltips for property images.
 
 ## Current Status (November 18, 2025)
-**Phase**: AI Pipeline Optimized & Production Ready
-- Full AI processing pipeline operational: fetch → AWS Rekognition labels → OpenAI descriptions
-- All AWS and OpenAI credentials configured and active
+**Phase**: Production Ready with Pipedrive Auto-Update & Smart Caching
+- Full AI processing pipeline operational: fetch → AWS Rekognition labels → OpenAI descriptions → Pipedrive update
+- All AWS, OpenAI, and Pipedrive credentials configured and active
 - OpenAI prompt optimized for commercial professional office spaces
 - Alt text: 8-14 words, short and functional for screen readers
 - Tooltip text: 20-30 words, descriptive but lean and factual
 - Descriptions are factual, varied structure, no promotional language
 - Neighborhood parsing: extracts clean name from full file paths
-- Make.com integration successfully configured and tested (10+ successful requests)
+- Make.com integration successfully configured and tested (100+ successful requests)
 - Endpoint accepts both JSON and form-urlencoded data formats
-- Returns structured JSON response with image_count and images array
-- Each image object includes: url, status, bytes_fetched, labels, alt_text, tooltip_text
-- Ready for Pipedrive and Wix integration (next phase)
+- **Pipedrive Integration**: Automatically updates "Deal - Alt Text Pic 1-10" and "Deal - Tooltip Pic 1-10" fields
+- **Smart Caching**: Checks Pipedrive before processing - skips already-populated slots to save costs
+- **Auto-Detection**: Extracts picture number (1-10) from URL filename automatically
+- **Idempotent**: Safe to retry/restart Make.com scenarios without reprocessing completed images
+- Processing all neighborhoods: Upper West Side, Upper East Side, West Village, Midtown East, etc.
+- Ready for Wix integration (next phase)
 
 ## Project Architecture
 
@@ -100,6 +103,15 @@ Without credentials, the API still functions but returns empty arrays for labels
 - **Replit Secrets Location**: Use the **workspace search bar** (top of workspace) and search for "Secrets". This is the most reliable method. In the Secrets panel, use the "App Secrets" tab to link Account Secrets or add new secrets. Account Secrets must be explicitly linked to each project to be available as environment variables.
 
 ## Recent Changes
+- **2025-11-18**: Pipedrive integration with smart caching
+  - Implemented automatic Pipedrive updates: API now updates "Deal - Alt Text Pic 1-10" and "Deal - Tooltip Pic 1-10" fields directly
+  - Added smart caching: checks Pipedrive before processing each image to skip already-populated slots
+  - Automatic picture number detection from URL filenames (e.g., ".../2560/1.jpeg" → Picture 1)
+  - Makes API idempotent: safe to restart Make.com scenarios without wasting costs on reprocessing
+  - Each retry skips completed images (returns cached data in <1 second, saves ~$0.001 per skip)
+  - Tested with multiple deals across neighborhoods (Upper West Side, Upper East Side, etc.)
+  - Successfully processed 60+ images with automatic Pipedrive field population
+
 - **2025-11-18**: OpenAI prompt optimization and neighborhood parsing
   - Updated OpenAI prompt to focus on commercial professional office spaces (not residential)
   - Optimized description lengths: alt_text 8-14 words, tooltip_text 20-30 words
