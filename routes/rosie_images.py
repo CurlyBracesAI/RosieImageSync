@@ -56,8 +56,14 @@ def _get_pipedrive_field_keys():
         print(f"Error fetching Pipedrive field keys: {e}")
         return None
 
-def _update_pipedrive_deal(deal_id, images):
-    """Update Pipedrive deal with alt text and tooltip data"""
+def _update_pipedrive_deal(deal_id, images, picture_number=None):
+    """Update Pipedrive deal with alt text and tooltip data
+    
+    Args:
+        deal_id: Pipedrive deal ID
+        images: List of image objects with alt_text and tooltip_text
+        picture_number: Optional specific picture slot (1-10) to update. If None, updates slots 1-N based on array position
+    """
     token = _get_pipedrive_api_token()
     if not token:
         print("No Pipedrive API token found")
@@ -70,15 +76,27 @@ def _update_pipedrive_deal(deal_id, images):
     
     # Build update payload
     update_data = {}
-    for i, image in enumerate(images, start=1):
-        if i > 10:  # Only handle first 10 images
-            break
-        
-        if i in field_map:
-            if "alt" in field_map[i] and image.get("alt_text"):
-                update_data[field_map[i]["alt"]] = image["alt_text"]
-            if "tooltip" in field_map[i] and image.get("tooltip_text"):
-                update_data[field_map[i]["tooltip"]] = image["tooltip_text"]
+    
+    if picture_number is not None:
+        # Update specific picture slot
+        if 1 <= picture_number <= 10 and len(images) > 0:
+            image = images[0]  # Use first image in array
+            if picture_number in field_map:
+                if "alt" in field_map[picture_number] and image.get("alt_text"):
+                    update_data[field_map[picture_number]["alt"]] = image["alt_text"]
+                if "tooltip" in field_map[picture_number] and image.get("tooltip_text"):
+                    update_data[field_map[picture_number]["tooltip"]] = image["tooltip_text"]
+    else:
+        # Update slots 1-N based on array position
+        for i, image in enumerate(images, start=1):
+            if i > 10:  # Only handle first 10 images
+                break
+            
+            if i in field_map:
+                if "alt" in field_map[i] and image.get("alt_text"):
+                    update_data[field_map[i]["alt"]] = image["alt_text"]
+                if "tooltip" in field_map[i] and image.get("tooltip_text"):
+                    update_data[field_map[i]["tooltip"]] = image["tooltip_text"]
     
     if not update_data:
         print("No data to update in Pipedrive")
@@ -92,7 +110,7 @@ def _update_pipedrive_deal(deal_id, images):
             json=update_data
         )
         response.raise_for_status()
-        print(f"Successfully updated Pipedrive deal {deal_id}")
+        print(f"Successfully updated Pipedrive deal {deal_id}, picture slot {picture_number if picture_number else '1-' + str(len(images))}")
         return True
     except Exception as e:
         print(f"Error updating Pipedrive deal: {e}")
@@ -217,9 +235,19 @@ def rosie_images():
     deal_id = data.get("deal_id")
     neighborhood = data.get("neighborhood")
     image_urls = data.get("image_urls")
+    picture_number = data.get("picture_number")
     
     if not deal_id or not neighborhood or image_urls is None:
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
+    
+    # Validate picture_number if provided
+    if picture_number is not None:
+        try:
+            picture_number = int(picture_number)
+            if picture_number < 1 or picture_number > 10:
+                return jsonify({"status": "error", "message": "picture_number must be between 1 and 10"}), 400
+        except (ValueError, TypeError):
+            return jsonify({"status": "error", "message": "picture_number must be a valid integer"}), 400
     
     # Clean neighborhood: extract just the neighborhood name from path like "Neighborhood Listing Images/Upper West Side/2560/1.jpg"
     if "/" in neighborhood:
@@ -242,13 +270,14 @@ def rosie_images():
         })
     
     # Update Pipedrive with alt text and tooltip data
-    pipedrive_updated = _update_pipedrive_deal(deal_id, processed)
+    pipedrive_updated = _update_pipedrive_deal(deal_id, processed, picture_number)
     
     return jsonify({
         "status": "ok",
         "deal_id": deal_id,
         "neighborhood": neighborhood,
         "image_count": len(image_urls),
+        "picture_number": picture_number,
         "images": processed,
         "pipedrive_updated": pipedrive_updated
     })
