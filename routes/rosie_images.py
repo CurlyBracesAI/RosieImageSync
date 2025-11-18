@@ -328,10 +328,15 @@ def rosie_images():
         try:
             url_path = image_urls[0].split('/')[-1]
             filename = url_path.split('.')[0]
+            print(f"Auto-detect: URL={image_urls[0][-50:]}, filename={filename}")
             picture_number = int(filename)
             if picture_number < 1 or picture_number > 10:
+                print(f"Auto-detect: Number {picture_number} out of range, setting to None")
                 picture_number = None
-        except (ValueError, IndexError):
+            else:
+                print(f"✓ Auto-detected picture_number: {picture_number}")
+        except (ValueError, IndexError) as e:
+            print(f"Auto-detect failed: filename='{filename}', error={e}")
             picture_number = None
     
     # Check if this picture slot is already populated (skip expensive processing)
