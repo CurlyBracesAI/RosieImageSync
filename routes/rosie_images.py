@@ -74,14 +74,14 @@ CRITICAL RULES:
 - Be professional and descriptive, not promotional
 
 Return JSON with:
-- alt_text: Brief factual description of what's shown (1-2 sentences max)
-- tooltip_text: Very short descriptor (5-10 words max)
+- alt_text: VERY SHORT - exactly 8-14 words. Describe the scene functionally for screen readers.
+- tooltip_text: Slightly longer - exactly 20-30 words. More descriptive but still lean and factual.
 
 Example good output:
-{{"alt_text": "Building exterior with windows and entrance", "tooltip_text": "Professional office building in {neighborhood}"}}
+{{"alt_text": "Building exterior with windows and entrance in {neighborhood}", "tooltip_text": "Professional office building in {neighborhood} featuring modern architecture and accessible entrance, suitable for therapists and medical professionals seeking commercial office space"}}
 
-Example BAD output (too promotional):
-{{"alt_text": "Experience this stunning architectural masterpiece...", "tooltip_text": "Your dream office awaits!"}}"""
+Example BAD output (wrong lengths or too promotional):
+{{"alt_text": "Experience this stunning architectural masterpiece with elegant design elements and sophisticated modern styling", "tooltip_text": "Great office!"}}"""
         
         response = client.chat.completions.create(
             model="gpt-4o-mini",
