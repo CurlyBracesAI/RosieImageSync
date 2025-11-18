@@ -62,9 +62,18 @@ Accepts both JSON and form-urlencoded formats:
 {
   "deal_id": "string",
   "neighborhood": "string",
-  "image_urls": "string or array"
+  "image_urls": "string or array",
+  "picture_number": "integer (1-10, optional)",
+  "force_refresh": "boolean (optional, default: false)"
 }
 ```
+
+**Parameters:**
+- `deal_id` - Pipedrive deal ID (required)
+- `neighborhood` - Neighborhood name or full path (required)
+- `image_urls` - Single URL or array of URLs (required)
+- `picture_number` - Specific picture slot (1-10) to update. Auto-detected from filename if not provided (optional)
+- `force_refresh` - Set to `true` to bypass cache and regenerate descriptions even if slot is populated. Use this to replace poor quality existing text or when images are updated (optional)
 
 ### Output Schema
 ```json

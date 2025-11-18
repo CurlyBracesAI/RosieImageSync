@@ -279,6 +279,11 @@ def rosie_images():
     neighborhood = data.get("neighborhood")
     image_urls = data.get("image_urls")
     picture_number = data.get("picture_number")
+    force_refresh = data.get("force_refresh", False)
+    
+    # Convert force_refresh to boolean
+    if isinstance(force_refresh, str):
+        force_refresh = force_refresh.lower() in ('true', '1', 'yes')
     
     if not deal_id or not neighborhood or image_urls is None:
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
@@ -311,7 +316,8 @@ def rosie_images():
             picture_number = None
     
     # Check if this picture slot is already populated (skip expensive processing)
-    existing_data = _check_pipedrive_slot_populated(deal_id, picture_number)
+    # Skip cache check if force_refresh is true
+    existing_data = None if force_refresh else _check_pipedrive_slot_populated(deal_id, picture_number)
     if existing_data:
         print(f"Skipping deal {deal_id}, picture slot {picture_number} - already populated")
         return jsonify({
