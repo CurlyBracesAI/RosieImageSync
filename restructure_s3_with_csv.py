@@ -70,8 +70,15 @@ def load_csv_mapping(csv_path):
     
     return mapping
 
-def find_best_match(folder_name, csv_mapping):
+def find_best_match(folder_name, csv_mapping, manual_overrides=None):
     """Find best matching deal ID for a folder name"""
+    # Check manual overrides first
+    if manual_overrides and folder_name in manual_overrides:
+        deal_id = manual_overrides[folder_name]
+        if deal_id == "DELETE":
+            return "DELETE", 1.0, "manual_deletion"
+        return deal_id, 1.0, "manual_override"
+    
     normalized_folder = normalize_address(folder_name)
     
     # Try exact match first
@@ -150,10 +157,13 @@ def rename_s3_folder(neighborhood, old_name, new_name):
     
     return True
 
-def analyze_and_map(csv_path):
+def analyze_and_map(csv_path, manual_overrides=None):
     """Analyze folders and create mapping"""
     csv_mapping = load_csv_mapping(csv_path)
     print(f"Loaded {len(csv_mapping)} deals from CSV\n")
+    
+    if manual_overrides:
+        print(f"Manual overrides provided: {len(manual_overrides)} folders\n")
     
     neighborhoods = ["Brooklyn | Queens", "UnSQ:Gren'Villl."]
     
@@ -179,11 +189,19 @@ def analyze_and_map(csv_path):
                 pass
             
             # Find best match
-            deal_id, score, matched_address = find_best_match(folder, csv_mapping)
+            deal_id, score, matched_address = find_best_match(folder, csv_mapping, manual_overrides)
             
-            if deal_id:
+            if deal_id == "DELETE":
+                print(f"🗑 {folder:45} → DELETE (dead folder)")
+                all_mappings[neighborhood][folder] = {
+                    "deal_id": "DELETE",
+                    "score": 1.0,
+                    "matched_address": "manual_deletion"
+                }
+            elif deal_id:
                 confidence = "HIGH" if score >= 0.9 else "MEDIUM" if score >= 0.8 else "LOW"
-                print(f"✓ {folder:45} → {deal_id:6} ({confidence}: {score:.2f}) [{matched_address}]")
+                match_type = matched_address if matched_address in ["exact", "manual_override"] else f"matched: {matched_address}"
+                print(f"✓ {folder:45} → {deal_id:6} ({confidence}: {score:.2f}) [{match_type}]")
                 all_mappings[neighborhood][folder] = {
                     "deal_id": deal_id,
                     "score": score,
@@ -195,26 +213,54 @@ def analyze_and_map(csv_path):
     
     return all_mappings
 
+def delete_s3_folder(neighborhood, folder_name):
+    """Delete a folder in S3 by deleting all objects with that prefix"""
+    prefix = f'Neighborhood Listing Images/{neighborhood}/{folder_name}/'
+    
+    # List all objects in folder
+    paginator = s3.get_paginator('list_objects_v2')
+    objects = []
+    
+    for page in paginator.paginate(Bucket=BUCKET_NAME, Prefix=prefix):
+        for obj in page.get('Contents', []):
+            objects.append(obj['Key'])
+    
+    if not objects:
+        print(f"  WARNING: No objects found in {prefix}")
+        return False
+    
+    # Delete all objects
+    for key in objects:
+        s3.delete_object(Bucket=BUCKET_NAME, Key=key)
+        print(f"    Deleted: {key}")
+    
+    return True
+
 def display_summary(mappings):
     """Display summary of proposed changes"""
     print("\n" + "="*80)
     print("PROPOSED S3 FOLDER RESTRUCTURING SUMMARY")
     print("="*80)
     
-    total_found = 0
+    total_rename = 0
+    total_delete = 0
     total_missing = 0
     total_low_confidence = 0
     
     for neighborhood, folders in mappings.items():
         for folder, mapping in folders.items():
             if mapping:
-                total_found += 1
-                if mapping['score'] < 0.8:
-                    total_low_confidence += 1
+                if mapping['deal_id'] == "DELETE":
+                    total_delete += 1
+                else:
+                    total_rename += 1
+                    if mapping['score'] < 0.8:
+                        total_low_confidence += 1
             else:
                 total_missing += 1
     
-    print(f"\n  ✓ {total_found} folders successfully mapped to deal IDs")
+    print(f"\n  ✓ {total_rename} folders will be renamed to deal IDs")
+    print(f"  🗑 {total_delete} folders will be deleted (dead)")
     print(f"  ⚠ {total_low_confidence} folders with low confidence matches (score < 0.8)")
     print(f"  ✗ {total_missing} folders could not be mapped")
     
@@ -223,7 +269,7 @@ def display_summary(mappings):
     
     print("\n" + "="*80)
     
-    return total_found, total_missing, total_low_confidence
+    return total_rename, total_delete, total_missing, total_low_confidence
 
 def execute_restructure(mappings, dry_run=True):
     """Execute the S3 folder restructuring"""
@@ -243,33 +289,61 @@ def execute_restructure(mappings, dry_run=True):
             if not mapping:
                 continue
             
-            # Skip low confidence matches
-            if mapping['score'] < 0.8:
+            # Skip low confidence matches (unless manual override)
+            if mapping['score'] < 0.8 and mapping['matched_address'] not in ['manual_override', 'manual_deletion']:
                 print(f"⊘ Skipping {old_name} (low confidence: {mapping['score']:.2f})")
                 continue
             
-            new_name = mapping['deal_id']
+            action = mapping['deal_id']
             
-            print(f"\nRenaming: {old_name} → {new_name}")
-            success = rename_s3_folder(neighborhood, old_name, new_name)
-            
-            if success:
-                print(f"  ✓ Successfully renamed to {new_name}")
+            if action == "DELETE":
+                print(f"\n🗑 Deleting: {old_name}")
+                success = delete_s3_folder(neighborhood, old_name)
+                
+                if success:
+                    print(f"  ✓ Successfully deleted")
+                else:
+                    print(f"  ✗ Failed to delete")
             else:
-                print(f"  ✗ Failed to rename")
+                new_name = action
+                print(f"\nRenaming: {old_name} → {new_name}")
+                success = rename_s3_folder(neighborhood, old_name, new_name)
+                
+                if success:
+                    print(f"  ✓ Successfully renamed to {new_name}")
+                else:
+                    print(f"  ✗ Failed to rename")
 
 if __name__ == "__main__":
     csv_path = 'attached_assets/deals-2979966-150_1763500957746.csv'
     
+    # Manual overrides provided by user
+    manual_overrides = {
+        "172 Crown Heights, Empire Blvd": "3879",
+        "80 5th Ave - 14th St (10th Fl)": "2562",
+        "80 5th Ave - 14th St (10th Fl) copy": "2562",
+        "150 W25th copy": "2854",
+        # Dead folders to delete
+        "40-29 235th St, Little Neck": "DELETE",
+        "42-23 212th St Bayside,": "DELETE",
+        "68 Washington St, Dumbo": "DELETE",
+        "85-09 151st Ave, Queens (1)": "DELETE",
+    }
+    
     print("Step 1: Analyzing S3 folders and matching to CSV...")
-    mappings = analyze_and_map(csv_path)
+    mappings = analyze_and_map(csv_path, manual_overrides)
     
     print("\nStep 2: Generating summary...")
-    total_found, total_missing, total_low = display_summary(mappings)
+    total_rename, total_delete, total_missing, total_low = display_summary(mappings)
     
-    if total_missing > 0 or total_low > 0:
-        print("\n⚠️  Please review the mappings above before proceeding.")
-        print("Run with execute=True parameter to apply changes.")
+    if total_missing > 0:
+        print("\n⚠️  WARNING: Some folders still need manual review.")
+        print("Please update manual_overrides before executing.")
     else:
-        print("\n✓ All folders successfully mapped!")
-        print("Ready to execute restructure.")
+        print("\n✅ All folders mapped successfully!")
+        print(f"   • {total_rename} folders ready to rename")
+        print(f"   • {total_delete} dead folders ready to delete")
+        print("\nTo execute: Change dry_run=False in execute_restructure() call")
+        
+        # DRY RUN by default - change to False to execute
+        execute_restructure(mappings, dry_run=True)
