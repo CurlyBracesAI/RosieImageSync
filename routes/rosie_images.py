@@ -71,17 +71,23 @@ CRITICAL RULES:
 - Keep descriptions SHORT and FACTUAL - describe only what's visible
 - Use the detected elements directly, don't embellish or add promotional language
 - NO flowery language, NO selling, NO assumptions beyond what's detected
+- VARY the sentence structure - don't use the same pattern every time
 - Be professional and descriptive, not promotional
+- Reference the location as "{neighborhood}" - DO NOT mention image URLs, file paths, or technical references
 
 Return JSON with:
 - alt_text: VERY SHORT - exactly 8-14 words. Describe the scene functionally for screen readers.
 - tooltip_text: Slightly longer - exactly 20-30 words. More descriptive but still lean and factual.
 
-Example good output:
-{{"alt_text": "Building exterior with windows and entrance in {neighborhood}", "tooltip_text": "Professional office building in {neighborhood} featuring modern architecture and accessible entrance, suitable for therapists and medical professionals seeking commercial office space"}}
+Example variations (all good - notice different structures):
+{{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office building in {neighborhood} with accessible entrance and reception space for therapy and medical practices."}}
 
-Example BAD output (wrong lengths or too promotional):
-{{"alt_text": "Experience this stunning architectural masterpiece with elegant design elements and sophisticated modern styling", "tooltip_text": "Great office!"}}"""
+{{"alt_text": "Office interior showing desk, chairs, and natural window lighting", "tooltip_text": "Furnished office space in {neighborhood} features natural light, seating area, and workspace setup for professional practices."}}
+
+{{"alt_text": "Building exterior with brick facade and street-level entrance", "tooltip_text": "Multi-story office building located in {neighborhood}, offering commercial space for healthcare and wellness professionals."}}
+
+Example BAD (promotional or repetitive):
+{{"alt_text": "Professional office space suitable for wellness professionals", "tooltip_text": "Professional office space in {neighborhood} suitable for therapists and medical professionals seeking office space."}}"""
         
         response = client.chat.completions.create(
             model="gpt-4o-mini",
