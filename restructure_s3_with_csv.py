@@ -343,7 +343,7 @@ if __name__ == "__main__":
         print("\n✅ All folders mapped successfully!")
         print(f"   • {total_rename} folders ready to rename")
         print(f"   • {total_delete} dead folders ready to delete")
-        print("\nTo execute: Change dry_run=False in execute_restructure() call")
+        print("\nExecuting restructure...")
         
-        # DRY RUN by default - change to False to execute
-        execute_restructure(mappings, dry_run=True)
+        # Execute the restructure
+        execute_restructure(mappings, dry_run=False)
