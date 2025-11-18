@@ -5,6 +5,99 @@ import os
 import requests
 from openai import OpenAI
 
+def _get_pipedrive_api_token():
+    """Get Pipedrive API token from environment"""
+    return os.environ.get("PIPEDRIVE_API_TOKEN")
+
+def _get_pipedrive_field_keys():
+    """Get Pipedrive custom field keys for Alt Text and Tooltip fields"""
+    token = _get_pipedrive_api_token()
+    if not token:
+        return None
+    
+    try:
+        response = requests.get(
+            "https://api.pipedrive.com/v1/dealFields",
+            params={"api_token": token}
+        )
+        response.raise_for_status()
+        fields = response.json().get("data", [])
+        
+        # Build mapping: {1: {alt: "key123", tooltip: "key456"}, 2: {...}, ...}
+        field_map = {}
+        for field in fields:
+            name = field.get("name", "")
+            key = field.get("key", "")
+            
+            # Match "Deal - Alt Text Pic 1" through "Deal - Alt Text Pic 10"
+            if "Alt Text Pic" in name:
+                pic_num = name.split("Pic")[-1].strip()
+                try:
+                    num = int(pic_num)
+                    if num not in field_map:
+                        field_map[num] = {}
+                    field_map[num]["alt"] = key
+                except ValueError:
+                    pass
+            
+            # Match "Deal - Tooltip Pic 1" through "Deal - Tooltip Pic 10"
+            elif "Tooltip Pic" in name:
+                pic_num = name.split("Pic")[-1].strip()
+                try:
+                    num = int(pic_num)
+                    if num not in field_map:
+                        field_map[num] = {}
+                    field_map[num]["tooltip"] = key
+                except ValueError:
+                    pass
+        
+        return field_map
+    except Exception as e:
+        print(f"Error fetching Pipedrive field keys: {e}")
+        return None
+
+def _update_pipedrive_deal(deal_id, images):
+    """Update Pipedrive deal with alt text and tooltip data"""
+    token = _get_pipedrive_api_token()
+    if not token:
+        print("No Pipedrive API token found")
+        return False
+    
+    field_map = _get_pipedrive_field_keys()
+    if not field_map:
+        print("Could not fetch Pipedrive field keys")
+        return False
+    
+    # Build update payload
+    update_data = {}
+    for i, image in enumerate(images, start=1):
+        if i > 10:  # Only handle first 10 images
+            break
+        
+        if i in field_map:
+            if "alt" in field_map[i] and image.get("alt_text"):
+                update_data[field_map[i]["alt"]] = image["alt_text"]
+            if "tooltip" in field_map[i] and image.get("tooltip_text"):
+                update_data[field_map[i]["tooltip"]] = image["tooltip_text"]
+    
+    if not update_data:
+        print("No data to update in Pipedrive")
+        return False
+    
+    # Update the deal
+    try:
+        response = requests.put(
+            f"https://api.pipedrive.com/v1/deals/{deal_id}",
+            params={"api_token": token},
+            json=update_data
+        )
+        response.raise_for_status()
+        print(f"Successfully updated Pipedrive deal {deal_id}")
+        return True
+    except Exception as e:
+        print(f"Error updating Pipedrive deal: {e}")
+        return False
+
 def _get_openai_client():
     """Lazy-load OpenAI client to pick up secrets at runtime"""
     api_key = os.environ.get("OPENAI_API_KEY")
