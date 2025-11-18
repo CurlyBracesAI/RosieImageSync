@@ -273,6 +273,7 @@ def rosie_images():
                 data['image_urls'] = [url.strip() for url in data['image_urls'].split(',')]
     
     if not data:
+        print(f"ERROR: No data received")
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
     deal_id = data.get("deal_id")
@@ -286,12 +287,14 @@ def rosie_images():
         force_refresh = force_refresh.lower() in ('true', '1', 'yes')
     
     if not deal_id or not neighborhood or image_urls is None:
+        print(f"ERROR: Missing fields - deal_id={deal_id}, neighborhood={neighborhood}, image_urls={image_urls}")
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
     # Convert deal_id to integer
     try:
         deal_id = int(deal_id)
     except (ValueError, TypeError):
+        print(f"ERROR: Invalid deal_id '{deal_id}' - must be numeric")
         return jsonify({"status": "error", "message": "deal_id must be a valid integer"}), 400
     
     # Validate picture_number if provided
