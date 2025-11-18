@@ -272,6 +272,9 @@ def rosie_images():
             except:
                 data['image_urls'] = [url.strip() for url in data['image_urls'].split(',')]
     
+    # DEBUG: Log incoming data
+    print(f"DEBUG: Received data: {data}")
+    
     if not data:
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
