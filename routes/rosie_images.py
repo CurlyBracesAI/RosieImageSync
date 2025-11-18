@@ -65,7 +65,7 @@ def _generate_descriptions(neighborhood, labels, url):
 
 Detected elements: {labels_str}
 Location: {neighborhood}
-Property type: Professional office space for therapists and medical professionals
+Property type: Professional office space for therapists, wellness and medical professionals
 
 CRITICAL RULES:
 - Keep descriptions SHORT and FACTUAL - describe only what's visible
