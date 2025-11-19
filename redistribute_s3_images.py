@@ -162,32 +162,20 @@ def create_redistribution_plan(csv_mapping, s3_inventory):
     return moves, unmatched_files, missing_files
 
 def map_neighborhood(csv_neighborhood):
-    """Map CSV neighborhood names to S3 folder names"""
-    # West Village folder contains multiple CSV neighborhoods
-    west_village_neighborhoods = [
-        'West Vill./Union Sq',
-        'Gramercy/Flatiron',
-        'Chelsea/Penn'
-    ]
+    """Map CSV neighborhood names to S3 folder names
+    
+    ONLY process West Vill./Union Sq and Brooklyn | Queens.
+    Leave Gramercy/Flatiron and Chelsea/Penn alone (not yet set up in S3).
+    """
+    # ONLY West Vill./Union Sq belongs in UnSQ:Gren'Villl. folder
+    if 'West Vill./Union Sq' in csv_neighborhood:
+        return 'UnSQ:Gren\'Villl.'
     
     # Brooklyn | Queens folder
-    brooklyn_neighborhoods = [
-        'Brooklyn',
-        'Queens',
-        'Brooklyn | Queens'
-    ]
+    if any(n in csv_neighborhood for n in ['Brooklyn', 'Queens', 'Brooklyn | Queens']):
+        return 'Brooklyn | Queens'
     
-    # Check West Village variations
-    for neighborhood in west_village_neighborhoods:
-        if neighborhood in csv_neighborhood:
-            return 'UnSQ:Gren\'Villl.'
-    
-    # Check Brooklyn variations
-    for neighborhood in brooklyn_neighborhoods:
-        if neighborhood in csv_neighborhood:
-            return 'Brooklyn | Queens'
-    
-    # Return None for neighborhoods we're not processing
+    # Return None for all other neighborhoods (Gramercy, Chelsea, etc - not yet migrated)
     return None
 
 def execute_redistribution(moves, dry_run=True):
