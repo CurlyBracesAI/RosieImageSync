@@ -12,7 +12,7 @@ s3 = boto3.client('s3',
 PIPEDRIVE_API_TOKEN = os.environ.get('PIPEDRIVE_API_TOKEN')
 PIPEDRIVE_API_URL = 'https://api.pipedrive.com/v1'
 BUCKET = 'neighborhood-listing-images'
-NEIGHBORHOOD_PREFIX = 'Neighborhood Listing Images/Midtown East | Gr Cent AWS S3/'
+NEIGHBORHOOD_PREFIX = "Neighborhood Listing Images/UnSQ | Gren'Villl. AWS S3/"
 
 def get_pipedrive_picture_field_keys():
     """Fetch the custom field keys for Picture 1-10 from Pipedrive"""
@@ -45,7 +45,7 @@ def get_pipedrive_picture_field_keys():
         return {}
 
 def get_s3_inventory():
-    """Get all images from Midtown East folder"""
+    """Get all images from West Village folder"""
     deals_inventory = {}
     
     response = s3.list_objects_v2(Bucket=BUCKET, Prefix=NEIGHBORHOOD_PREFIX, Delimiter='/')
@@ -125,7 +125,7 @@ def update_pipedrive_deal(deal_id, images_dict, field_keys):
 
 if __name__ == '__main__':
     print('Pipedrive URL Update Script')
-    print('Updating Midtown East | Gr Cent AWS S3 image URLs')
+    print("Updating UnSQ | Gren'Villl. AWS S3 image URLs")
     print('='*60)
     print()
     
