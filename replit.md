@@ -40,3 +40,25 @@ Descriptions are factual, varied in structure, and avoid promotional language. A
 - **OpenAI API**: Used for generating alt text and tooltip descriptions. Requires `OPENAI_API_KEY`.
 - **Pipedrive**: The CRM system where generated alt text and tooltips are updated. Integration relies on Pipedrive's API for updating deal custom fields.
 - **Make.com**: An integration platform used to orchestrate the workflow, triggering the API with image data from Pipedrive.
+
+## Recent Changes
+
+- **2025-11-20**: Brooklyn | Queens ready for Make.com AI processing with force_refresh
+  - Updated workflow guide to require force_refresh=true for Brooklyn | Queens
+  - Existing descriptions are old profile content and need to be overwritten
+  - All 97 images will get fresh AI-generated alt text and tooltip descriptions
+  - Cost estimate: ~$0.30 for complete refresh of all Brooklyn | Queens images
+  - Verified full AI pipeline: AWS Rekognition → OpenAI → Pipedrive update working correctly
+  - Created comprehensive Make.com workflow guide: BROOKLYN_QUEENS_MAKE_WORKFLOW_GUIDE.md
+  - Guide includes 3 scenario options with force_refresh=true configuration
+  - Ready to process all 97 Brooklyn | Queens images through Make.com
+
+- **2025-11-20**: Brooklyn | Queens URL upload to Pipedrive
+  - Successfully uploaded 97 image URLs across 15 Brooklyn | Queens deals to Pipedrive
+  - Created `update_pipedrive_urls.py` script to bulk update "Picture 1-10" fields
+  - Fixed critical URL encoding bug with `quote(key, safe="/")` to preserve path separators
+  - All images numbered 1-10 with original filenames preserved in S3 folder "Brooklyn | Queens AWS S3"
+  - URL pattern: `https://neighborhood-listing-images.s3.amazonaws.com/Neighborhood%20Listing%20Images/Brooklyn%20%7C%20Queens%20AWS%20S3/{deal_id}/{number}.jpg`
+  - All URLs verified accessible (HTTP 200 response)
+  - Zero errors during upload, all 15 deals updated successfully
+  - Created verification documentation: BROOKLYN_QUEENS_UPLOAD_VERIFICATION.md

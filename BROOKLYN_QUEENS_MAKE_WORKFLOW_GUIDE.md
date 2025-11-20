@@ -4,6 +4,8 @@
 ## Overview
 Process all 97 Brooklyn | Queens images through the ROSIE AGENT E API to generate AI-powered alt text and tooltip descriptions, then automatically update Pipedrive.
 
+**IMPORTANT**: Brooklyn | Queens requires `force_refresh=true` to overwrite existing old profile descriptions with fresh AI-generated content.
+
 ## API Endpoint
 **URL**: `https://262b6272-a512-43bd-b89f-dd45acce6b62-00-1ggs85wl8sclp.spock.replit.dev/rosie-images`
 **Method**: POST
@@ -34,21 +36,26 @@ Parse Response: Yes
 {
   "deal_id": "{{pipedrive_deal_id}}",
   "neighborhood": "Brooklyn | Queens",
-  "image_urls": ["{{picture_url}}"]
+  "image_urls": ["{{picture_url}}"],
+  "force_refresh": true
 }
 ```
+
+**IMPORTANT**: `force_refresh: true` is **required** for Brooklyn | Queens to overwrite existing old descriptions with fresh AI-generated content.
 
 ### Field Mapping Example:
 ```
 deal_id → {{pipedrive.deal_id}}
 neighborhood → "Brooklyn | Queens" (hardcoded)
 image_urls → [{{pipedrive.picture_1}}] (or picture_2, picture_3, etc.)
+force_refresh → true (hardcoded - overwrites existing descriptions)
 ```
 
-### Optional Parameters:
-- `force_refresh`: Set to `true` to regenerate descriptions even if already populated
-  - Default: `false` (uses smart caching)
-  - Use case: Replace poor quality existing text or when images are updated
+### Force Refresh Parameter:
+- `force_refresh: true` - **REQUIRED for Brooklyn | Queens** to replace old profile descriptions
+  - Regenerates descriptions even if already populated
+  - Ensures all 97 images get fresh AI-generated alt text and tooltips
+  - Cost: ~$0.30 for all images (minimal investment for quality improvement)
 
 ## Smart Caching Behavior
 
@@ -124,6 +131,7 @@ image_urls → [{{pipedrive.picture_1}}] (or picture_2, picture_3, etc.)
    - deal_id: 3246
    - neighborhood: "Brooklyn | Queens"
    - image_urls: [{{picture_1}}]
+   - force_refresh: true
 3. HTTP Request: Call /rosie-images
 4. Logger: Output response
 ```
