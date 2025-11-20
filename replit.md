@@ -3,7 +3,7 @@
 ## Overview
 Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi-agent system. This service centralizes image processing for real estate deals, integrating AWS Rekognition and OpenAI to generate alt text and tooltips for property images.
 
-## Current Status (November 18, 2025)
+## Current Status (November 20, 2025)
 **Phase**: Production Ready with Pipedrive Auto-Update & Smart Caching
 - Full AI processing pipeline operational: fetch → AWS Rekognition labels → OpenAI descriptions → Pipedrive update
 - All AWS, OpenAI, and Pipedrive credentials configured and active
@@ -18,7 +18,7 @@ Flask-based microservice API for ROSIE AGENT E, part of the CurlyBraces.ai multi
 - **Smart Caching**: Checks Pipedrive before processing - skips already-populated slots to save costs
 - **Auto-Detection**: Extracts picture number (1-10) from URL filename automatically
 - **Idempotent**: Safe to retry/restart Make.com scenarios without reprocessing completed images
-- **S3 Structure Standardized**: All neighborhoods now use numeric deal IDs (matches UWS/UES format)
+- **Brooklyn | Queens Images**: All 15 deals with 97 total images uploaded to "Brooklyn | Queens AWS S3" folder in S3 and synced to Pipedrive Picture 1-10 fields
 - Processing all neighborhoods: Upper West Side, Upper East Side, West Village, Midtown East, Brooklyn, Queens
 - Ready for Wix integration (next phase)
 
@@ -113,6 +113,17 @@ Without credentials, the API still functions but returns empty arrays for labels
 - **Replit Secrets Location**: Use the **workspace search bar** (top of workspace) and search for "Secrets". This is the most reliable method. In the Secrets panel, use the "App Secrets" tab to link Account Secrets or add new secrets. Account Secrets must be explicitly linked to each project to be available as environment variables.
 
 ## Recent Changes
+- **2025-11-20**: Brooklyn | Queens URL upload to Pipedrive
+  - Successfully uploaded 97 image URLs across 15 Brooklyn | Queens deals to Pipedrive
+  - Created `update_pipedrive_urls.py` script to bulk update "Picture 1-10" fields
+  - Script dynamically fetches Pipedrive field keys and maps S3 images to correct slots
+  - All images numbered 1-10 with original filenames preserved in S3 folder "Brooklyn | Queens AWS S3"
+  - URLs use proper encoding with `quote(key, safe="/")` to preserve path separators
+  - URL pattern: `https://neighborhood-listing-images.s3.amazonaws.com/Neighborhood%20Listing%20Images/Brooklyn%20%7C%20Queens%20AWS%20S3/{deal_id}/{number}.jpg`
+  - Zero errors during upload, all 15 deals updated successfully with accessible URLs
+  - Greenwich Village (West Village) folder upload next on roadmap
+  - Fixed LSP warnings in routes/rosie_images.py with type ignore comments and variable initialization
+
 - **2025-11-18**: S3 image file renaming for auto-detection
   - Renamed ALL image files in West Village and Brooklyn | Queens to sequential numbers
   - West Village: 15 deals, 200+ images renamed (1.jpg, 2.jpeg, 3.pdf, etc.)

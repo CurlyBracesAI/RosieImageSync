@@ -277,10 +277,11 @@ def rosie_images():
         if 'image_urls' in data:
             image_urls_str = data['image_urls']
             try:
-                data['image_urls'] = json.loads(image_urls_str) if isinstance(image_urls_str, str) else image_urls_str
+                parsed = json.loads(image_urls_str) if isinstance(image_urls_str, str) else image_urls_str
+                data['image_urls'] = parsed  # type: ignore
             except:
                 if isinstance(image_urls_str, str):
-                    data['image_urls'] = [url.strip() for url in image_urls_str.split(',')]
+                    data['image_urls'] = [url.strip() for url in image_urls_str.split(',')]  # type: ignore
     
     if not data:
         print(f"ERROR: No data received")
@@ -325,6 +326,7 @@ def rosie_images():
     # Auto-detect picture_number from URL if not provided
     # URL format: .../2560/1.jpeg or .../2560/2.jpeg
     if picture_number is None and len(image_urls) == 1:
+        filename = ""
         try:
             url_path = image_urls[0].split('/')[-1]
             filename = url_path.split('.')[0]
