@@ -44,13 +44,13 @@ Descriptions are factual, varied in structure, and avoid promotional language. A
 ## Recent Changes
 
 - **2025-11-20**: West Village URL upload to Pipedrive
-  - Successfully uploaded 61 image URLs across 7 active West Village deals
+  - Successfully uploaded 68 image URLs across all 8 West Village deals
   - S3 folder: "UnSQ | Gren'Villl. AWS S3"
-  - Deal 6301 skipped (404 - no longer in Pipedrive, old client)
+  - Deal 6301 required manual update (S3 folder had trailing space: "6301 " vs "6301")
   - All images numbered 1-10 with original filenames preserved
   - URL pattern: `https://neighborhood-listing-images.s3.amazonaws.com/Neighborhood%20Listing%20Images/UnSQ%20%7C%20Gren%27Villl.%20AWS%20S3/{deal_id}/{number}.jpg`
   - All URLs verified accessible (HTTP 200 response)
-  - 100% success rate for active deals (7/7)
+  - 100% success rate (8/8 deals)
   - Created verification documentation: WEST_VILLAGE_UPLOAD_VERIFICATION.md
 
 - **2025-11-20**: Midtown East URL upload to Pipedrive

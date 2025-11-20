@@ -2,13 +2,13 @@
 **Date**: November 20, 2025
 
 ## Summary
-Successfully uploaded West Village image URLs to Pipedrive across 7 active deals (1 skipped - deal no longer exists).
+Successfully uploaded West Village image URLs to Pipedrive across all 8 deals.
 
 ## Script Execution Results
-- **Total Active Deals**: 7
-- **Total Images**: 61
-- **Success Rate**: 100% for active deals (7/7)
-- **Skipped**: Deal 6301 (404 - not found in Pipedrive, likely old client)
+- **Total Deals**: 8
+- **Total Images**: 68
+- **Success Rate**: 100% (8/8 deals)
+- **Note**: Deal 6301 required manual update due to trailing space in S3 folder name ("6301 " vs "6301")
 - **S3 Folder**: UnSQ | Gren'Villl. AWS S3
 - **URL Format**: `https://neighborhood-listing-images.s3.amazonaws.com/Neighborhood%20Listing%20Images/UnSQ%20%7C%20Gren%27Villl.%20AWS%20S3/{deal_id}/{number}.jpg`
 
@@ -22,7 +22,7 @@ Successfully uploaded West Village image URLs to Pipedrive across 7 active deals
 | 3719 | 7 | ✓ Updated |
 | 4621 | 4 | ✓ Updated |
 | 5845 | 10 | ✓ Updated |
-| 6301 | N/A | ✗ Skipped (404 - not in Pipedrive) |
+| 6301 | 7 | ✓ Updated (manual - S3 folder had trailing space) |
 
 ## URL Accessibility Test
 **Sample URL**: `https://neighborhood-listing-images.s3.amazonaws.com/Neighborhood%20Listing%20Images/UnSQ%20%7C%20Gren%27Villl.%20AWS%20S3/2562/1.jpg`
