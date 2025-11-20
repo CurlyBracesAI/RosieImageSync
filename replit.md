@@ -43,6 +43,15 @@ Descriptions are factual, varied in structure, and avoid promotional language. A
 
 ## Recent Changes
 
+- **2025-11-20**: Midtown East URL upload to Pipedrive
+  - Successfully uploaded 96 image URLs across 13 Midtown East deals to Pipedrive
+  - Used corrected S3 folder: "Midtown East | Gr Cent AWS S3"
+  - All images numbered 1-10 with original filenames preserved
+  - URL pattern: `https://neighborhood-listing-images.s3.amazonaws.com/Neighborhood%20Listing%20Images/Midtown%20East%20%7C%20Gr%20Cent%20AWS%20S3/{deal_id}/{number}.jpg`
+  - All URLs verified accessible (HTTP 200 response)
+  - Zero errors during upload, all 13 deals updated successfully
+  - Created verification documentation: MIDTOWN_EAST_UPLOAD_VERIFICATION.md
+
 - **2025-11-20**: Brooklyn | Queens ready for Make.com AI processing with force_refresh
   - Updated workflow guide to require force_refresh=true for Brooklyn | Queens
   - Existing descriptions are old profile content and need to be overwritten
