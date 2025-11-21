@@ -9,6 +9,29 @@ def _get_pipedrive_api_token():
     """Get Pipedrive API token from environment"""
     return os.environ.get("PIPEDRIVE_API_TOKEN")
 
+def _get_deal_address(deal_id):
+    """Fetch the address of a deal from Pipedrive"""
+    token = _get_pipedrive_api_token()
+    if not token:
+        return None
+    
+    try:
+        response = requests.get(
+            f"https://api.pipedrive.com/v1/deals/{deal_id}",
+            params={"api_token": token}
+        )
+        response.raise_for_status()
+        deal_data = response.json().get("data", {})
+        
+        # Try to get address field
+        address = deal_data.get("address")
+        if address:
+            return address.strip()
+        return None
+    except Exception as e:
+        print(f"Error fetching deal address for {deal_id}: {e}")
+        return None
+
 def _get_pipedrive_field_keys():
     """Get Pipedrive custom field keys for Alt Text and Tooltip fields"""
     token = _get_pipedrive_api_token()
@@ -215,17 +238,22 @@ def _detect_labels(image_bytes):
     except Exception:
         return []
 
-def _generate_descriptions(neighborhood, labels, url):
+def _generate_descriptions(neighborhood, labels, url, address=None):
     client = _get_openai_client()
     if not client:
         return {"alt_text": "", "tooltip_text": ""}
     
     try:
         labels_str = ", ".join(labels) if labels else "no labels detected"
+        
+        # Build location reference: use address if available, otherwise neighborhood
+        location_ref = address if address else neighborhood
+        
         prompt = f"""Generate simple, factual descriptions for a commercial office property image.
 
 Detected elements: {labels_str}
-Location: {neighborhood}
+Location: {location_ref}
+Neighborhood: {neighborhood}
 Property type: Professional office space for psychotherapists, wellness and medical professionals
 
 CRITICAL RULES:
@@ -234,21 +262,21 @@ CRITICAL RULES:
 - NO flowery language, NO selling, NO assumptions beyond what's detected
 - VARY the sentence structure - don't use the same pattern every time
 - Be professional and descriptive, not promotional
-- Reference the location as "{neighborhood}" - DO NOT mention image URLs, file paths, or technical references
+- Reference the location as "{location_ref}" in descriptions - DO NOT mention image URLs, file paths, or technical references
 
 Return JSON with:
 - alt_text: VERY SHORT - exactly 8-14 words. Describe the scene functionally for screen readers.
 - tooltip_text: Slightly longer - exactly 20-30 words. More descriptive for the website visitor, but still lean and factual.
 
 Example variations (all good - notice different structures):
-{{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office building in {neighborhood} with accessible entrance and reception space for therapy and medical practices."}}
+{{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office at {location_ref} features accessible entrance and reception space for therapy and medical practices."}}
 
-{{"alt_text": "Office interior showing desk, chairs, and natural window lighting", "tooltip_text": "Furnished office space in {neighborhood} features natural light, seating area, and workspace setup for professional practices."}}
+{{"alt_text": "Office interior showing desk, chairs, and natural window lighting", "tooltip_text": "Furnished office at {location_ref} offers natural light, seating area, and workspace setup for professional practices."}}
 
-{{"alt_text": "Building exterior with brick facade and street-level entrance", "tooltip_text": "Multi-story office building located in {neighborhood}, offering commercial space for healthcare and wellness professionals."}}
+{{"alt_text": "Building exterior with brick facade and street-level entrance", "tooltip_text": "Office building at {location_ref} provides commercial space for healthcare and wellness professionals."}}
 
 Example BAD (promotional or repetitive):
-{{"alt_text": "Professional office space suitable for wellness professionals", "tooltip_text": "Professional office space in {neighborhood} suitable for therapists and medical professionals seeking office space."}}"""
+{{"alt_text": "Professional office space suitable for wellness professionals", "tooltip_text": "Professional office space suitable for therapists and medical professionals seeking office space."}}"""
         
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -341,6 +369,13 @@ def rosie_images():
             print(f"Auto-detect failed: filename='{filename}', error={e}")
             picture_number = None
     
+    # Fetch deal address from Pipedrive
+    address = _get_deal_address(deal_id)
+    if address:
+        print(f"✓ Got address for deal {deal_id}: {address}")
+    else:
+        print(f"⚠️ No address found for deal {deal_id}, will use neighborhood in descriptions")
+    
     # Check if this picture slot is already populated (skip expensive processing)
     # Skip cache check if force_refresh is true
     print(f"Checking cache for deal {deal_id}, picture {picture_number}, force_refresh={force_refresh}")
@@ -370,7 +405,7 @@ def rosie_images():
     for url in image_urls:
         image_bytes = _fetch_image_bytes(url)
         labels = _detect_labels(image_bytes)
-        descriptions = _generate_descriptions(neighborhood, labels, url)
+        descriptions = _generate_descriptions(neighborhood, labels, url, address=address)
         processed.append({
             "url": url,
             "status": "processed",
