@@ -33,10 +33,24 @@ Once all neighborhoods have been processed with AI-generated alt text and toolti
    - Or: Wix Stores Products
    - Custom fields for alt_text and tooltip_text
 
+## Neighborhoods to Sync
+
+Once processing is complete, sync all neighborhoods to Wix:
+1. **Brooklyn | Queens** (15 deals, 97 images) ✅ Complete
+2. **Midtown East** (13 deals, 112 images) ✅ Complete  
+3. **West Village** (8 deals, 68 images) ✅ Complete
+4. **Upper East Side** (TBD deals, TBD images) 🔄 In Progress
+5. **Upper West Side** (TBD deals, TBD images) ⏳ Pending Upload & Processing
+
 ## Next Steps
 
-When Upper East Side finishes:
-1. Confirm all neighborhoods complete in Pipedrive
-2. Get Wix API credentials
-3. Identify Wix data structure (which Wix collection/products to update)
-4. Implement sync logic via Make.com or Flask endpoint
+**Phase 1 - Wait for Upper East Side completion**
+1. Confirm Upper East Side finishes in Pipedrive
+2. Upload Upper West Side image URLs to Pipedrive (if not done)
+3. Process Upper West Side through Make.com
+
+**Phase 2 - Wix Sync**
+1. Get Wix API credentials (Site ID + API Key)
+2. Identify Wix data structure (which collection/products to update)
+3. Implement sync logic via Make.com or Flask endpoint
+4. Test sync on one neighborhood first, then batch sync all neighborhoods

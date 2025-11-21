@@ -41,6 +41,19 @@ Descriptions are factual, varied in structure, and avoid promotional language. A
 - **Pipedrive**: The CRM system where generated alt text and tooltips are updated. Integration relies on Pipedrive's API for updating deal custom fields.
 - **Make.com**: An integration platform used to orchestrate the workflow, triggering the API with image data from Pipedrive.
 
+## Neighborhoods Processed
+**AI Processing Complete (Pipedrive sync ready for Wix):**
+- Brooklyn | Queens: 15 deals, 97 images
+- Midtown East: 13 deals, 112 images
+- West Village: 8 deals, 68 images
+- Upper East Side: IN PROGRESS
+
+**Next for Processing:**
+- Upper West Side (to be uploaded to Pipedrive and processed)
+
+## Next Phase
+After Upper East Side completes, sync all neighborhoods to Wix website via Wix API integration.
+
 ## Recent Changes
 
 - **2025-11-20**: West Village URL upload to Pipedrive
