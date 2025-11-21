@@ -1,0 +1,274 @@
+import os
+import requests
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+PIPEDRIVE_API_TOKEN = os.getenv("PIPEDRIVE_API_TOKEN")
+PIPEDRIVE_COMPANY_DOMAIN = os.getenv("PIPEDRIVE_COMPANY_DOMAIN")
+WIX_API_KEY = os.getenv("WIX_API_KEY")
+WIX_COLLECTION_ID = os.getenv("WIX_COLLECTION_ID")
+
+PIPEDRIVE_BASE_URL = f"https://{PIPEDRIVE_COMPANY_DOMAIN}.pipedrive.com/v1"
+WIX_BULK_SAVE_URL = "https://www.wixapis.com/wix-data/v2/bulk/items/save"
+
+
+def get_pipedrive_field_map():
+    """
+    Build a map from human-readable Pipedrive field names (what you see in the UI)
+    to internal field keys (like abc123def456…).
+    We’ll only keep the ones we care about.
+    """
+    url = f"{PIPEDRIVE_BASE_URL}/dealFields"
+    res = requests.get(url, params={"api_token": PIPEDRIVE_API_TOKEN})
+    res.raise_for_status()
+    data = res.json()["data"]
+
+    name_to_key = {}
+    for field in data:
+        name = field.get("name")
+        key = field.get("key")
+        if not name or not key:
+            continue
+        name_to_key[name] = key
+
+    # IMPORTANT: map your exact UI labels → internal keys
+    return {
+        # IDs
+        "Deal - ID (Wix)": name_to_key.get("Deal - ID (Wix)"),
+        "Deal - Unified Neighborhood Link": name_to_key.get("Deal - Unified Neighborhood Link"),
+        "Deal - Order": name_to_key.get("Deal - Order"),
+
+        # Core details
+        "Deal - Title": name_to_key.get("Deal - Title"),
+        "Deal - Web Description Copy": name_to_key.get("Deal - Web Description Copy"),
+        "Deal - Partner Wellspring Weblink": name_to_key.get("Deal - Partner Wellspring Weblink"),
+        "Deal - Neighborhood (primary)": name_to_key.get("Deal - Neighborhood (primary)"),
+        "Deal - Neighborhood (secondary)": name_to_key.get("Deal - Neighborhood (secondary)"),
+        "Deal - Neighborhood (address details)": name_to_key.get("Deal - Neighborhood (address details)"),
+        "Deal - Neighborhood Link Local": name_to_key.get("Deal - Neighborhood Link Local"),
+        "Deal - Unified Neighborhood Link (Wix ID)": name_to_key.get("Deal - Unified Neighborhood Link"),
+        "Deal - State": name_to_key.get("Deal - State"),
+        "Deal - Zip Code": name_to_key.get("Deal - Zip Code"),
+        "Deal - Map": name_to_key.get("Deal - Map"),
+        "Deal - Slug Address": name_to_key.get("Deal - Slug Address"),
+        "Deal - FT | PT Availability/ Requirement": name_to_key.get("Deal - FT | PT Availability/ Requirement"),
+        "Deal - Profession | Use": name_to_key.get("Deal - Profession | Use"),
+        "Deal - Profession | Use2": name_to_key.get("Deal - Profession | Use2"),
+
+        # Pictures 1–10 + alt/tooltip
+        "Deal - Picture 1": name_to_key.get("Deal - Picture 1"),
+        "Deal - Picture 2": name_to_key.get("Deal - Picture 2"),
+        "Deal - Picture 3": name_to_key.get("Deal - Picture 3"),
+        "Deal - Picture 4": name_to_key.get("Deal - Picture 4"),
+        "Deal - Picture 5": name_to_key.get("Deal - Picture 5"),
+        "Deal - Picture 6": name_to_key.get("Deal - Picture 6"),
+        "Deal - Picture 7": name_to_key.get("Deal - Picture 7"),
+        "Deal - Picture 8": name_to_key.get("Deal - Picture 8"),
+        "Deal - Picture 9": name_to_key.get("Deal - Picture 9"),
+        "Deal - Picture 10": name_to_key.get("Deal - Picture 10"),
+
+        "Deal - Alt Text Pic 1": name_to_key.get("Deal - Alt Text Pic 1"),
+        "Deal - Alt Text Pic 2": name_to_key.get("Deal - Alt Text Pic 2"),
+        "Deal - Alt Text Pic 3": name_to_key.get("Deal - Alt Text Pic 3"),
+        "Deal - Alt Text Pic 4": name_to_key.get("Deal - Alt Text Pic 4"),
+        "Deal - Alt Text Pic 5": name_to_key.get("Deal - Alt Text Pic 5"),
+        "Deal - Alt Text Pic 6": name_to_key.get("Deal - Alt Text Pic 6"),
+        "Deal - Alt Text Pic 7": name_to_key.get("Deal - Alt Text Pic 7"),
+        "Deal - Alt Text Pic 8": name_to_key.get("Deal - Alt Text Pic 8"),
+        "Deal - Alt Text Pic 9": name_to_key.get("Deal - Alt Text Pic 9"),
+        "Deal - Alt Text Pic 10": name_to_key.get("Deal - Alt Text Pic 10"),
+
+        "Deal - Tooltip Pic 1": name_to_key.get("Deal - Tooltip Pic 1"),
+        "Deal - Tooltip Pic 2": name_to_key.get("Deal - Tooltip Pic 2"),
+        "Deal - Tooltip Pic 3": name_to_key.get("Deal - Tooltip Pic 3"),
+        "Deal - Tooltip Pic 4": name_to_key.get("Deal - Tooltip Pic 4"),
+        "Deal - Tooltip Pic 5": name_to_key.get("Deal - Tooltip Pic 5"),
+        "Deal - Tooltip Pic 6": name_to_key.get("Deal - Tooltip Pic 6"),
+        "Deal - Tooltip Pic 7": name_to_key.get("Deal - Tooltip Pic 7"),
+        "Deal - Tooltip Pic 8": name_to_key.get("Deal - Tooltip Pic 8"),
+        "Deal - Tooltip Pic 9": name_to_key.get("Deal - Tooltip Pic 9"),
+        "Deal - Tooltip Pic 10": name_to_key.get("Deal - Tooltip Pic 10"),
+    }
+
+
+def fetch_all_deals(field_map):
+    """
+    Pull all relevant deals from Pipedrive.
+    You can add filters here (e.g. only “Open” + has Unified Neighborhood Link).
+    """
+    deals = []
+    start = 0
+    limit = 500
+
+    while True:
+        url = f"{PIPEDRIVE_BASE_URL}/deals"
+        params = {
+            "api_token": PIPEDRIVE_API_TOKEN,
+            "start": start,
+            "limit": limit,
+            "status": "open"  # adjust if you want all statuses
+        }
+        res = requests.get(url, params=params)
+        res.raise_for_status()
+        body = res.json()
+        batch = body.get("data") or []
+        if not batch:
+            break
+        deals.extend(batch)
+        if not body.get("additional_data", {}).get("pagination", {}).get("more_items_in_collection"):
+            break
+        start = body["additional_data"]["pagination"]["next_start"]
+
+    # Optional: filter to only deals that have a Wix item ID
+    wix_id_key = field_map["Deal - Unified Neighborhood Link (Wix ID)"]
+    return [d for d in deals if d.get(wix_id_key)]
+
+
+def build_wix_item_from_deal(deal, field_map):
+    """
+    Turn one Pipedrive deal into a Wix Data Items payload entry.
+    """
+    fm = field_map  # shorthand
+
+    def val(field_name, default=None):
+        key = fm.get(field_name)
+        if not key:
+            return default
+        return deal.get(key, default)
+
+    pipedrive_deal_id = deal.get("id")  # numeric
+    wix_item_id = val("Deal - Unified Neighborhood Link (Wix ID)")  # UUID stored in PD
+
+    if not wix_item_id:
+        return None
+
+    data = {
+        # IDs
+        "ID": str(pipedrive_deal_id),
+        "Order": val("Deal - Order"),
+
+        # Location / routing
+        "Neighborhood Link Local": val("Deal - Neighborhood Link Local"),
+        "Unified Neighborhood Link": wix_item_id,
+        "Neighborhood (primary)": val("Deal - Neighborhood (primary)"),
+        "Neighborhood (secondary)": val("Deal - Neighborhood (secondary)"),
+        "Neighborhood (address details)": val("Deal - Neighborhood (address details)"),
+        "State": val("Deal - State"),
+        "Zip Code": val("Deal - Zip Code"),
+        "Map": val("Deal - Map"),
+        "Slug Address": val("Deal - Slug Address"),
+
+        # Content
+        "Title": val("Deal - Title"),
+        "Web Description Copy": val("Deal - Web Description Copy"),
+        "Partner Wellspring Weblink": val("Deal - Partner Wellspring Weblink"),
+        "FT | PT Availability/ Requirement": val("Deal - FT | PT Availability/ Requirement"),
+        "Profession | Use": val("Deal - Profession | Use"),
+        "Profession | Use2": val("Deal - Profession | Use2"),
+
+        # Images + alt + tooltip
+        "Picture 1": val("Deal - Picture 1"),
+        "Alt Text Pic 1": val("Deal - Alt Text Pic 1"),
+        "Tooltip Pic 1": val("Deal - Tooltip Pic 1"),
+
+        "Picture 2": val("Deal - Picture 2"),
+        "Alt Text Pic 2": val("Deal - Alt Text Pic 2"),
+        "Tooltip Pic 2": val("Deal - Tooltip Pic 2"),
+
+        "Picture 3": val("Deal - Picture 3"),
+        "Alt Text Pic 3": val("Deal - Alt Text Pic 3"),
+        "Tooltip Pic 3": val("Deal - Tooltip Pic 3"),
+
+        "Picture 4": val("Deal - Picture 4"),
+        "Alt Text Pic 4": val("Deal - Alt Text Pic 4"),
+        "Tooltip Pic 4": val("Deal - Tooltip Pic 4"),
+
+        "Picture 5": val("Deal - Picture 5"),
+        "Alt Text Pic 5": val("Deal - Alt Text Pic 5"),
+        "Tooltip Pic 5": val("Deal - Tooltip Pic 5"),
+
+        "Picture 6": val("Deal - Picture 6"),
+        "Alt Text Pic 6": val("Deal - Alt Text Pic 6"),
+        "Tooltip Pic 6": val("Deal - Tooltip Pic 6"),
+
+        "Picture 7": val("Deal - Picture 7"),
+        "Alt Text Pic 7": val("Deal - Alt Text Pic 7"),
+        "Tooltip Pic 7": val("Deal - Tooltip Pic 7"),
+
+        "Picture 8": val("Deal - Picture 8"),
+        "Alt Text Pic 8": val("Deal - Alt Text Pic 8"),
+        "Tooltip Pic 8": val("Deal - Tooltip Pic 8"),
+
+        "Picture 9": val("Deal - Picture 9"),
+        "Alt Text Pic 9": val("Deal - Alt Text Pic 9"),
+        "Tooltip Pic 9": val("Deal - Tooltip Pic 9"),
+
+        "Picture 10": val("Deal - Picture 10"),
+        "Alt Text Pic 10": val("Deal - Alt Text Pic 10"),
+        "Tooltip Pic 10": val("Deal - Tooltip Pic 10"),
+    }
+
+    # You can strip out keys where value is None if Wix complains:
+    data = {k: v for k, v in data.items() if v is not None}
+
+    return {
+        "dataItemId": wix_item_id,  # this is the Wix item ID
+        "data": data
+    }
+
+
+def send_bulk_to_wix(items):
+    """
+    Call Wix Bulk Save API with a batch of items.
+    """
+    if not items:
+        return {"sent": 0, "status": "no_items"}
+
+    headers = {
+        "Authorization": WIX_API_KEY,
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "collectionId": WIX_COLLECTION_ID,
+        "items": items
+    }
+    res = requests.post(WIX_BULK_SAVE_URL, headers=headers, json=payload)
+    res.raise_for_status()
+    return res.json()
+
+
+@app.route("/sync-wix", methods=["POST", "GET"])
+def sync_wix():
+    """
+    Master sync endpoint:
+    - loads field map
+    - fetches deals
+    - builds Wix items
+    - bulk saves them
+    """
+    if not (PIPEDRIVE_API_TOKEN and PIPEDRIVE_COMPANY_DOMAIN and WIX_API_KEY and WIX_COLLECTION_ID):
+        return jsonify({"error": "Missing one or more env vars"}), 500
+
+    field_map = get_pipedrive_field_map()
+    deals = fetch_all_deals(field_map)
+
+    wix_items = []
+    skipped = 0
+
+    for deal in deals:
+        item = build_wix_item_from_deal(deal, field_map)
+        if item is None:
+            skipped += 1
+            continue
+        wix_items.append(item)
+
+    # You can chunk if you’re paranoid; for now send in one batch
+    response = send_bulk_to_wix(wix_items)
+
+    return jsonify({
+        "deals_fetched": len(deals),
+        "items_built": len(wix_items),
+        "skipped_missing_wix_id": skipped,
+        "wix_response": response
+    })
