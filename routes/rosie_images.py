@@ -252,16 +252,13 @@ def _generate_descriptions(neighborhood, labels, url, address=None):
     try:
         labels_str = ", ".join(labels) if labels else "no labels detected"
         
-        # Build location reference: use address if available, otherwise neighborhood
+        # Use address for descriptions, fallback to neighborhood if address is not available
         location_ref = address if address else neighborhood
-        
-        print(f"📝 PROMPT DEBUG - neighborhood='{neighborhood}', address='{address}', location_ref='{location_ref}'")
         
         prompt = f"""Generate simple, factual descriptions for a commercial office property image.
 
 Detected elements: {labels_str}
 Location: {location_ref}
-Neighborhood: {neighborhood}
 Property type: Professional office space for psychotherapists, wellness and medical professionals
 
 CRITICAL RULES:
@@ -270,23 +267,21 @@ CRITICAL RULES:
 - NO flowery language, NO selling, NO assumptions beyond what's detected
 - VARY the sentence structure - don't use the same pattern every time
 - Be professional and descriptive, not promotional
-- Reference the location as "{location_ref} in {neighborhood}" in descriptions - DO NOT mention image URLs, file paths, or technical references
+- DO NOT mention image URLs, file paths, or technical references
 
 Return JSON with:
 - alt_text: VERY SHORT - exactly 8-14 words. Describe the scene functionally for screen readers.
 - tooltip_text: Slightly longer - exactly 20-30 words. More descriptive scene details for the website visitor, but still lean and factual.
 
 Example variations (all good - notice different structures):
-{{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office at {location_ref} in {neighborhood}, features accessible entrance and reception space for therapy and medical practices."}}
+{{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office space features accessible entrance and reception area suitable for therapy and medical practices."}}
 
-{{"alt_text": "Office interior showing desk, chairs, and natural window lighting", "tooltip_text": "Furnished office at {location_ref} in {neighborhood}, offers natural light, seating area, and workspace setup for professional practices."}}
+{{"alt_text": "Office interior showing desk, chairs, and natural window lighting", "tooltip_text": "Furnished office offers natural light, comfortable seating area, and workspace setup for professional practices."}}
 
-{{"alt_text": "Building exterior with brick facade and street-level entrance", "tooltip_text": "Office building at {location_ref} in {neighborhood}, provides commercial space for healthcare and wellness professionals."}}
+{{"alt_text": "Building exterior with brick facade and street-level entrance", "tooltip_text": "Office building provides professional commercial space for healthcare and wellness professionals."}}
 
 Example BAD (promotional or repetitive):
 {{"alt_text": "Professional office space suitable for wellness professionals", "tooltip_text": "Professional office space suitable for therapists and medical professionals seeking office space."}}"""
-        
-        print(f"📤 SENDING TO OPENAI - prompt includes location_ref='{location_ref}', neighborhood='{neighborhood}'")
         
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -296,7 +291,6 @@ Example BAD (promotional or repetitive):
         
         content = response.choices[0].message.content or "{}"
         result = json.loads(content)
-        print(f"📥 OPENAI RESPONSE - alt_text='{result.get('alt_text')}', tooltip_text='{result.get('tooltip_text')[:60]}...'")
         
         return {
             "alt_text": result.get("alt_text", ""),
@@ -356,38 +350,6 @@ def rosie_images():
         except (ValueError, TypeError):
             return jsonify({"status": "error", "message": "picture_number must be a valid integer"}), 400
     
-    # Clean neighborhood: if it's just a number (deal_id from Make.com), extract from URL
-    if neighborhood.isdigit():
-        # URL format: https://...../Brooklyn_Queens_AWS_S3/2561/1.jpg
-        if image_urls and len(image_urls) > 0:
-            try:
-                url = image_urls[0]
-                # Extract S3 folder name (contains AWS_S3)
-                parts = url.split('/')
-                for part in parts:
-                    if 'AWS_S3' in part:
-                        neighborhood = part
-                        print(f"✓ Extracted S3 folder from URL: {neighborhood}")
-                        break
-            except Exception as e:
-                print(f"⚠️ Failed to extract neighborhood from URL: {e}")
-    
-    # If still has slashes, extract first part (S3 folder before deal_id)
-    if "/" in neighborhood:
-        neighborhood = neighborhood.split("/")[0]
-    
-    # Map S3 folder names to human-readable neighborhood names
-    s3_to_neighborhood = {
-        "Brooklyn_Queens_AWS_S3": "Brooklyn | Queens",
-        "Midtown_East_Gr_Cent_AWS_S3": "Midtown East",
-        "UnSQ_Gren_Villl_AWS_S3": "West Village",
-        "Upper_West_Side_AWS_S3": "Upper West Side",
-        "Upper_East_Side_AWS_S3": "Upper East Side"
-    }
-    
-    if neighborhood in s3_to_neighborhood:
-        neighborhood = s3_to_neighborhood[neighborhood]
-        print(f"✓ Mapped S3 folder to neighborhood: {neighborhood}")
     
     # Auto-detect picture_number from URL if not provided
     # URL format: .../2560/1.jpeg or .../2560/2.jpeg
