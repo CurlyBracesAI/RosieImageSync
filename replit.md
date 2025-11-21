@@ -82,13 +82,20 @@ Descriptions are factual, varied in structure, and avoid promotional language. A
   - Zero errors during upload, all 15 deals updated successfully
   - Created verification documentation: BROOKLYN_QUEENS_UPLOAD_VERIFICATION.md
 
-- **2025-11-21**: Midtown East Make.com AI Processing - Timeout Root Cause Identified
+- **2025-11-21**: Midtown East Make.com AI Processing - Part 1 Complete (13/15 deals)
   - Successfully processed 13/15 Midtown East deals with AI-generated alt text and tooltips
   - Processed deals: 1925, 2573, 2859, 2908, 3419, 4181, 4339, 4359, 4634, 4789, 4806, 5482, 6041
-  - Missing deals identified: **3367** and **4188**
+  - Remaining deals: 3367 & 4188 (to be processed in separate batch to avoid timeout)
   - Run completed in 21.9 minutes (112 images, 13 deals = ~11.7 seconds per image)
-  - Root cause: 96+ images across multiple deals accumulates to 35-40+ minutes, exceeding Make.com's hard 40-minute timeout
+  - Root cause analysis: 96+ images across multiple deals accumulates to 35-40+ minutes, exceeding Make.com's hard 40-minute timeout
   - Created comprehensive analysis: TIMEOUT_ANALYSIS.md + REMEDIATION_PLAN.md
-  - Solution: Process remaining 2 deals in a separate batch (estimated 15-20 min, safe under 40 min limit)
-  - Prevention: Use batch sizing formula: max_images_per_batch = (2400 seconds / avg_time_per_image) = ~205 images max
+  - Prevention formula: max_images_per_batch = 2400 seconds / avg_time_per_image = ~205 images max
   - Recommendation: For future neighborhoods, stay under 150 images per Make.com scenario for safety buffer
+
+- **2025-11-21**: Upper East Side Make.com AI Processing - IN PROGRESS
+  - S3 folder: Upper_East_Side_AWS_S3/
+  - Processing deals: 2639, 3206+ (and more)
+  - Current status: Successfully updating Pipedrive with address-based alt text and tooltips
+  - Processing speed: ~5 seconds per image (optimized performance)
+  - All descriptions reference actual addresses (e.g., "341 East 79th Street (2nd)")
+  - Ready to monitor completion
