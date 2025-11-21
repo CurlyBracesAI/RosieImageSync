@@ -179,8 +179,13 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
         payload = {"items": wix_items}
         
         print(f"Syncing {len(wix_items)} items to Wix...")
+        
+        # Try bulk save endpoint - use save instead of bulk/save
+        bulk_endpoint = f"{WIX_API_BASE}/collections/{collection_id}/items/bulk/save"
+        print(f"Endpoint: {bulk_endpoint}")
+        
         response = requests.post(
-            f"{WIX_API_BASE}/collections/{collection_id}/items/bulk/save",
+            bulk_endpoint,
             headers=headers,
             json=payload
         )

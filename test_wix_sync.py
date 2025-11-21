@@ -28,10 +28,14 @@ def test_sync(neighborhood_filter=None):
     else:
         print("Testing sync for: ALL NEIGHBORHOODS")
     
-    print(f"Calling: POST {API_URL}\n")
+    url = API_URL
+    if neighborhood_filter:
+        url = f"{API_URL}?neighborhood={neighborhood_filter}"
+    
+    print(f"Calling: POST {url}\n")
     
     try:
-        response = requests.post(API_URL, timeout=60)
+        response = requests.post(url, timeout=60)
         response.raise_for_status()
         
         result = response.json()
