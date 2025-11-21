@@ -255,6 +255,8 @@ def _generate_descriptions(neighborhood, labels, url, address=None):
         # Build location reference: use address if available, otherwise neighborhood
         location_ref = address if address else neighborhood
         
+        print(f"📝 PROMPT DEBUG - neighborhood='{neighborhood}', address='{address}', location_ref='{location_ref}'")
+        
         prompt = f"""Generate simple, factual descriptions for a commercial office property image.
 
 Detected elements: {labels_str}
@@ -272,7 +274,7 @@ CRITICAL RULES:
 
 Return JSON with:
 - alt_text: VERY SHORT - exactly 8-14 words. Describe the scene functionally for screen readers.
-- tooltip_text: Slightly longer - exactly 20-30 words. More descriptive scene for the website visitor, but still lean and factual.
+- tooltip_text: Slightly longer - exactly 20-30 words. More descriptive scene details for the website visitor, but still lean and factual.
 
 Example variations (all good - notice different structures):
 {{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office at {location_ref} in {neighborhood}, features accessible entrance and reception space for therapy and medical practices."}}
@@ -284,6 +286,8 @@ Example variations (all good - notice different structures):
 Example BAD (promotional or repetitive):
 {{"alt_text": "Professional office space suitable for wellness professionals", "tooltip_text": "Professional office space suitable for therapists and medical professionals seeking office space."}}"""
         
+        print(f"📤 SENDING TO OPENAI - prompt includes location_ref='{location_ref}', neighborhood='{neighborhood}'")
+        
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
@@ -292,6 +296,7 @@ Example BAD (promotional or repetitive):
         
         content = response.choices[0].message.content or "{}"
         result = json.loads(content)
+        print(f"📥 OPENAI RESPONSE - alt_text='{result.get('alt_text')}', tooltip_text='{result.get('tooltip_text')[:60]}...'")
         
         return {
             "alt_text": result.get("alt_text", ""),
@@ -351,35 +356,11 @@ def rosie_images():
         except (ValueError, TypeError):
             return jsonify({"status": "error", "message": "picture_number must be a valid integer"}), 400
     
-    # Clean neighborhood: remove deal_id and S3 folder artifacts
-    print(f"DEBUG: neighborhood before cleaning: '{neighborhood}'")
-    
-    # Remove deal_id if it's appended (e.g., "Brooklyn_Queens_AWS_S3/2561" -> "Brooklyn_Queens_AWS_S3")
-    if "/" in neighborhood:
-        parts = neighborhood.split("/")
-        # Take the first part (S3 folder name) and ignore the deal_id
-        neighborhood = parts[0]
-    
-    # Map S3 folder names to human-readable neighborhood names
-    s3_to_neighborhood = {
-        "Brooklyn_Queens_AWS_S3": "Brooklyn | Queens",
-        "Midtown_East_Gr_Cent_AWS_S3": "Midtown East",
-        "UnSQ_Gren_Villl_AWS_S3": "West Village",
-        "Upper_West_Side_AWS_S3": "Upper West Side",
-        "Upper_East_Side_AWS_S3": "Upper East Side"
-    }
-    
-    # If neighborhood is an S3 folder name, convert it
-    if neighborhood in s3_to_neighborhood:
-        neighborhood = s3_to_neighborhood[neighborhood]
-    
-    # Also handle old pipe-separated names from Pipedrive address field
+    # Clean neighborhood: extract just the neighborhood name from path like "Neighborhood Listing Images/Upper West Side/2560/1.jpg"
     if "/" in neighborhood:
         parts = neighborhood.split("/")
         if len(parts) >= 2 and parts[0] == "Neighborhood Listing Images":
             neighborhood = parts[1]
-    
-    print(f"DEBUG: neighborhood after cleaning: '{neighborhood}'")
     
     # Auto-detect picture_number from URL if not provided
     # URL format: .../2560/1.jpeg or .../2560/2.jpeg
