@@ -356,11 +356,38 @@ def rosie_images():
         except (ValueError, TypeError):
             return jsonify({"status": "error", "message": "picture_number must be a valid integer"}), 400
     
-    # Clean neighborhood: extract just the neighborhood name from path like "Neighborhood Listing Images/Upper West Side/2560/1.jpg"
+    # Clean neighborhood: if it's just a number (deal_id from Make.com), extract from URL
+    if neighborhood.isdigit():
+        # URL format: https://...../Brooklyn_Queens_AWS_S3/2561/1.jpg
+        if image_urls and len(image_urls) > 0:
+            try:
+                url = image_urls[0]
+                # Extract S3 folder name (contains AWS_S3)
+                parts = url.split('/')
+                for part in parts:
+                    if 'AWS_S3' in part:
+                        neighborhood = part
+                        print(f"✓ Extracted S3 folder from URL: {neighborhood}")
+                        break
+            except Exception as e:
+                print(f"⚠️ Failed to extract neighborhood from URL: {e}")
+    
+    # If still has slashes, extract first part (S3 folder before deal_id)
     if "/" in neighborhood:
-        parts = neighborhood.split("/")
-        if len(parts) >= 2 and parts[0] == "Neighborhood Listing Images":
-            neighborhood = parts[1]
+        neighborhood = neighborhood.split("/")[0]
+    
+    # Map S3 folder names to human-readable neighborhood names
+    s3_to_neighborhood = {
+        "Brooklyn_Queens_AWS_S3": "Brooklyn | Queens",
+        "Midtown_East_Gr_Cent_AWS_S3": "Midtown East",
+        "UnSQ_Gren_Villl_AWS_S3": "West Village",
+        "Upper_West_Side_AWS_S3": "Upper West Side",
+        "Upper_East_Side_AWS_S3": "Upper East Side"
+    }
+    
+    if neighborhood in s3_to_neighborhood:
+        neighborhood = s3_to_neighborhood[neighborhood]
+        print(f"✓ Mapped S3 folder to neighborhood: {neighborhood}")
     
     # Auto-detect picture_number from URL if not provided
     # URL format: .../2560/1.jpeg or .../2560/2.jpeg
