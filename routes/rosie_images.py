@@ -274,11 +274,11 @@ Return JSON with:
 - tooltip_text: Slightly longer - exactly 20-30 words. More descriptive scene details for the website visitor, but still lean and factual.
 
 Example variations (all good - notice different structures):
-{{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office space features accessible entrance and reception area suitable for therapy and medical practices."}}
+{{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office at {location_ref} features accessible entrance and reception area suitable for therapy and medical practices."}}
 
-{{"alt_text": "Office interior showing desk, chairs, and natural window lighting", "tooltip_text": "Furnished office offers natural light, comfortable seating area, and workspace setup for professional practices."}}
+{{"alt_text": "Office interior showing desk, chairs, and natural window lighting", "tooltip_text": "Furnished office at {location_ref} offers natural light, comfortable seating area, and workspace setup for professional practices."}}
 
-{{"alt_text": "Building exterior with brick facade and street-level entrance", "tooltip_text": "Office building provides professional commercial space for healthcare and wellness professionals."}}
+{{"alt_text": "Building exterior with brick facade and street-level entrance", "tooltip_text": "Office building at {location_ref} provides professional commercial space for healthcare and wellness professionals."}}
 
 Example BAD (promotional or repetitive):
 {{"alt_text": "Professional office space suitable for wellness professionals", "tooltip_text": "Professional office space suitable for therapists and medical professionals seeking office space."}}"""
