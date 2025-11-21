@@ -268,21 +268,21 @@ CRITICAL RULES:
 - NO flowery language, NO selling, NO assumptions beyond what's detected
 - VARY the sentence structure - don't use the same pattern every time
 - Be professional and descriptive, not promotional
-- Reference the location as "{location_ref}" in descriptions - DO NOT mention image URLs, file paths, or technical references
+- Reference the location as "{location_ref} in {neighborhood}" in descriptions - DO NOT mention image URLs, file paths, or technical references
 
 Return JSON with:
 - alt_text: VERY SHORT - exactly 8-14 words. Describe the scene functionally for screen readers.
 - tooltip_text: Slightly longer - exactly 20-30 words. More descriptive for the website visitor, but still lean and factual.
 
 Example variations (all good - notice different structures):
-{{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office at {location_ref} features accessible entrance and reception space for therapy and medical practices."}}
+{{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office at {location_ref} in {neighborhood} features accessible entrance and reception space for therapy and medical practices."}}
 
-{{"alt_text": "Office interior showing desk, chairs, and natural window lighting", "tooltip_text": "Furnished office at {location_ref} offers natural light, seating area, and workspace setup for professional practices."}}
+{{"alt_text": "Office interior showing desk, chairs, and natural window lighting", "tooltip_text": "Furnished office at {location_ref} in {neighborhood} offers natural light, seating area, and workspace setup for professional practices."}}
 
-{{"alt_text": "Building exterior with brick facade and street-level entrance", "tooltip_text": "Office building at {location_ref} provides commercial space for healthcare and wellness professionals."}}
+{{"alt_text": "Building exterior with brick facade and street-level entrance", "tooltip_text": "Office building at {location_ref} in {neighborhood} provides commercial space for healthcare and wellness professionals."}}
 
 Example BAD (promotional or repetitive):
-{{"alt_text": "Professional office space suitable for wellness professionals", "tooltip_text": "Professional office space suitable for therapists and medical professionals seeking office space."}}"""
+{{"alt_text": "Professional office space suitable for wellness professionals", "tooltip_text": "Professional office space suitable for therapists and medical professionals."}}"""
         
         response = client.chat.completions.create(
             model="gpt-4o-mini",
