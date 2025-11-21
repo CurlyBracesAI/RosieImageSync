@@ -293,7 +293,16 @@ def sync_wix():
     2. Match by Pipedrive ID
     3. Update Pipedrive with Wix item IDs
     4. Sync all data to Wix
+    
+    Query params:
+    - neighborhood: Filter by neighborhood (e.g., "Upper West Side", "Midtown East")
     """
+    from flask import request
+    
+    neighborhood_filter = request.args.get('neighborhood')
+    if neighborhood_filter:
+        print(f"✓ Filtering by neighborhood: {neighborhood_filter}")
+    
     if not all([WIX_API_KEY, WIX_SITE_ID, PIPEDRIVE_API_TOKEN]):
         return jsonify({
             "error": "Missing credentials",
@@ -331,6 +340,18 @@ def sync_wix():
     
     # Match and link IDs
     matches = _match_and_link_ids(wix_items, pipedrive_deals, field_map)
+    
+    # Filter by neighborhood if specified
+    if neighborhood_filter and field_map:
+        neighborhood_key = field_map.get("Deal - Neighborhood (primary)")
+        if neighborhood_key:
+            filtered_matches = []
+            for match in matches:
+                deal_neighborhood = match["pipedrive_deal"].get(neighborhood_key, "")
+                if neighborhood_filter.lower() in deal_neighborhood.lower():
+                    filtered_matches.append(match)
+            print(f"✓ Filtered to {len(filtered_matches)} matches in {neighborhood_filter}")
+            matches = filtered_matches
     
     if not matches:
         return jsonify({
