@@ -23,10 +23,16 @@ def _get_deal_address(deal_id):
         response.raise_for_status()
         deal_data = response.json().get("data", {})
         
-        # Try to get address field
+        # Try custom field "Neighborhood (address details)" first
+        address = deal_data.get("056689a92ce6b5049bf4b1293931c9fad5325c5f")
+        if address:
+            return address.strip()
+        
+        # Fallback to standard address field
         address = deal_data.get("address")
         if address:
             return address.strip()
+        
         return None
     except Exception as e:
         print(f"Error fetching deal address for {deal_id}: {e}")
