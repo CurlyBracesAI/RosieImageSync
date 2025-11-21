@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 import os
 import requests
 
@@ -35,37 +35,11 @@ def _get_wix_collection_id():
             if coll.get("displayName") == WIX_COLLECTION_NAME:
                 return coll.get("id")
         
-        print(f"Collection '{WIX_COLLECTION_NAME}' not found. Available: {[c.get('displayName') for c in collections]}")
+        print(f"Collection '{WIX_COLLECTION_NAME}' not found")
         return None
     except Exception as e:
         print(f"Error fetching Wix collection ID: {e}")
         return None
-
-
-def _fetch_wix_items(collection_id):
-    """Fetch all items from Wix collection"""
-    if not collection_id or not WIX_API_KEY or not WIX_SITE_ID:
-        return []
-    
-    try:
-        headers = {
-            "Authorization": WIX_API_KEY,
-            "wix-site-id": WIX_SITE_ID
-        }
-        
-        response = requests.get(
-            f"{WIX_API_BASE}/collections/{collection_id}/items",
-            headers=headers
-        )
-        response.raise_for_status()
-        data = response.json()
-        
-        items = data.get("items", [])
-        print(f"✓ Fetched {len(items)} items from Wix collection")
-        return items
-    except Exception as e:
-        print(f"Error fetching Wix items: {e}")
-        return []
 
 
 def _get_pipedrive_field_map():
@@ -93,8 +67,8 @@ def _get_pipedrive_field_map():
         return None
 
 
-def _fetch_pipedrive_deals():
-    """Fetch all open deals from Pipedrive"""
+def _fetch_pipedrive_deals(neighborhood_filter=None):
+    """Fetch all open deals from Pipedrive, optionally filtered by neighborhood"""
     if not PIPEDRIVE_API_TOKEN:
         return []
     
@@ -135,77 +109,8 @@ def _fetch_pipedrive_deals():
         return []
 
 
-def _match_and_link_ids(wix_items, pipedrive_deals, field_map):
-    """
-    Match Wix items to Pipedrive deals using Pipedrive ID.
-    For each Wix item, find its "ID" field (Pipedrive ID) and match to deal.
-    Return: list of (wix_item, pipedrive_deal, wix_id) tuples
-    """
-    matches = []
-    
-    # Build Pipedrive ID → deal mapping
-    pd_id_to_deal = {deal.get("id"): deal for deal in pipedrive_deals}
-    
-    for wix_item in wix_items:
-        wix_item_id = wix_item.get("id")
-        item_data = wix_item.get("data", {})
-        
-        # Wix "ID" field should contain Pipedrive deal ID
-        pd_id = item_data.get("ID")
-        
-        if pd_id and pd_id in pd_id_to_deal:
-            pipedrive_deal = pd_id_to_deal[pd_id]
-            matches.append({
-                "wix_item_id": wix_item_id,
-                "pipedrive_deal_id": pd_id,
-                "pipedrive_deal": pipedrive_deal
-            })
-    
-    print(f"✓ Matched {len(matches)} Wix items to Pipedrive deals")
-    return matches
-
-
-def _update_pipedrive_with_wix_ids(matches, field_map):
-    """
-    Update Pipedrive deals with Wix item IDs in the linking field.
-    Updates "Deal - Unified Neighborhood Link (Wix ID)" field.
-    """
-    if not PIPEDRIVE_API_TOKEN or not field_map:
-        return 0
-    
-    wix_id_field_key = field_map.get("Deal - Unified Neighborhood Link (Wix ID)")
-    if not wix_id_field_key:
-        print("✗ Could not find 'Deal - Unified Neighborhood Link (Wix ID)' field in Pipedrive")
-        return 0
-    
-    updated_count = 0
-    
-    for match in matches:
-        pd_deal_id = match["pipedrive_deal_id"]
-        wix_item_id = match["wix_item_id"]
-        
-        try:
-            payload = {
-                wix_id_field_key: wix_item_id
-            }
-            
-            response = requests.put(
-                f"{PIPEDRIVE_BASE}/deals/{pd_deal_id}",
-                params={"api_token": PIPEDRIVE_API_TOKEN},
-                json=payload
-            )
-            response.raise_for_status()
-            updated_count += 1
-            
-        except Exception as e:
-            print(f"✗ Error updating deal {pd_deal_id}: {e}")
-    
-    print(f"✓ Updated {updated_count} Pipedrive deals with Wix item IDs")
-    return updated_count
-
-
-def _build_wix_update_payload(pipedrive_deal, field_map):
-    """Convert Pipedrive deal data to Wix item update payload"""
+def _build_wix_payload(pipedrive_deal, field_map):
+    """Convert Pipedrive deal to Wix item data payload"""
     if not field_map:
         return {}
     
@@ -243,22 +148,25 @@ def _build_wix_update_payload(pipedrive_deal, field_map):
     return data
 
 
-def _sync_data_to_wix(collection_id, matches, field_map):
-    """Bulk sync all Pipedrive data to Wix items"""
-    if not collection_id or not WIX_API_KEY or not WIX_SITE_ID or not matches:
-        return {"error": "Missing collection_id, credentials, or matches"}
+def _sync_to_wix(collection_id, pipedrive_deals, field_map):
+    """
+    Sync Pipedrive deals to Wix by matching Pipedrive ID field.
+    Wix items already have Pipedrive IDs in their "ID" field.
+    """
+    if not collection_id or not WIX_API_KEY or not WIX_SITE_ID or not pipedrive_deals:
+        return {"error": "Missing collection_id, credentials, or deals"}
     
     try:
         wix_items = []
         
-        for match in matches:
-            wix_item_id = match["wix_item_id"]
-            pipedrive_deal = match["pipedrive_deal"]
+        for deal in pipedrive_deals:
+            deal_id = deal.get("id")
             
-            item_data = _build_wix_update_payload(pipedrive_deal, field_map)
+            item_data = _build_wix_payload(deal, field_map)
+            item_data["ID"] = str(deal_id)  # Ensure Pipedrive ID is in payload
             
             wix_items.append({
-                "dataItemId": wix_item_id,
+                "dataItemId": str(deal_id),  # Use Pipedrive ID as reference
                 "data": item_data
             })
         
@@ -270,6 +178,7 @@ def _sync_data_to_wix(collection_id, matches, field_map):
         
         payload = {"items": wix_items}
         
+        print(f"Syncing {len(wix_items)} items to Wix...")
         response = requests.post(
             f"{WIX_API_BASE}/collections/{collection_id}/items/bulk/save",
             headers=headers,
@@ -277,8 +186,9 @@ def _sync_data_to_wix(collection_id, matches, field_map):
         )
         response.raise_for_status()
         
-        print(f"✓ Synced {len(wix_items)} items to Wix")
-        return response.json()
+        result = response.json()
+        print(f"✓ Synced to Wix: {result}")
+        return result
         
     except Exception as e:
         print(f"✗ Error syncing to Wix: {e}")
@@ -288,29 +198,23 @@ def _sync_data_to_wix(collection_id, matches, field_map):
 @bp_wix_sync.route('/sync-wix', methods=['POST', 'GET'])
 def sync_wix():
     """
-    Master sync endpoint: 
-    1. Fetch Wix items and Pipedrive deals
-    2. Match by Pipedrive ID
-    3. Update Pipedrive with Wix item IDs
-    4. Sync all data to Wix
+    Sync Pipedrive deals to Wix collection.
     
     Query params:
-    - neighborhood: Filter by neighborhood (e.g., "Upper West Side", "Midtown East")
-    """
-    from flask import request
+    - neighborhood: Filter by neighborhood (e.g., "Upper West Side")
     
+    Usage:
+    - GET /sync-wix                                    # Sync all neighborhoods
+    - GET /sync-wix?neighborhood=Upper%20West%20Side   # Sync one neighborhood
+    """
     neighborhood_filter = request.args.get('neighborhood')
     if neighborhood_filter:
         print(f"✓ Filtering by neighborhood: {neighborhood_filter}")
     
+    # Validate credentials
     if not all([WIX_API_KEY, WIX_SITE_ID, PIPEDRIVE_API_TOKEN]):
         return jsonify({
-            "error": "Missing credentials",
-            "details": {
-                "wix_api_key": bool(WIX_API_KEY),
-                "wix_site_id": bool(WIX_SITE_ID),
-                "pipedrive_token": bool(PIPEDRIVE_API_TOKEN)
-            }
+            "error": "Missing credentials"
         }), 500
     
     # Get Wix collection ID
@@ -327,51 +231,36 @@ def sync_wix():
     
     print(f"✓ Built Pipedrive field map")
     
-    # Fetch Wix items and Pipedrive deals
-    wix_items = _fetch_wix_items(collection_id)
+    # Fetch Pipedrive deals
     pipedrive_deals = _fetch_pipedrive_deals()
     
-    if not wix_items or not pipedrive_deals:
-        return jsonify({
-            "error": "No Wix items or Pipedrive deals found",
-            "wix_items_count": len(wix_items),
-            "pipedrive_deals_count": len(pipedrive_deals)
-        }), 400
-    
-    # Match and link IDs
-    matches = _match_and_link_ids(wix_items, pipedrive_deals, field_map)
+    if not pipedrive_deals:
+        return jsonify({"error": "No Pipedrive deals found"}), 400
     
     # Filter by neighborhood if specified
     if neighborhood_filter and field_map:
         neighborhood_key = field_map.get("Deal - Neighborhood (primary)")
         if neighborhood_key:
-            filtered_matches = []
-            for match in matches:
-                deal_neighborhood = match["pipedrive_deal"].get(neighborhood_key, "")
+            filtered_deals = []
+            for deal in pipedrive_deals:
+                deal_neighborhood = deal.get(neighborhood_key, "")
                 if neighborhood_filter.lower() in deal_neighborhood.lower():
-                    filtered_matches.append(match)
-            print(f"✓ Filtered to {len(filtered_matches)} matches in {neighborhood_filter}")
-            matches = filtered_matches
+                    filtered_deals.append(deal)
+            print(f"✓ Filtered to {len(filtered_deals)} deals in {neighborhood_filter}")
+            pipedrive_deals = filtered_deals
     
-    if not matches:
+    if not pipedrive_deals:
         return jsonify({
-            "message": "No matches found between Wix items and Pipedrive deals",
-            "wix_items_count": len(wix_items),
-            "pipedrive_deals_count": len(pipedrive_deals),
-            "matches_count": 0
+            "message": "No deals found for specified neighborhood",
+            "neighborhood": neighborhood_filter
         }), 200
     
-    # Update Pipedrive with Wix item IDs
-    updated_count = _update_pipedrive_with_wix_ids(matches, field_map)
-    
-    # Sync data to Wix
-    wix_response = _sync_data_to_wix(collection_id, matches, field_map)
+    # Sync to Wix
+    wix_response = _sync_to_wix(collection_id, pipedrive_deals, field_map)
     
     return jsonify({
         "status": "success",
-        "wix_items_fetched": len(wix_items),
-        "pipedrive_deals_fetched": len(pipedrive_deals),
-        "matches_found": len(matches),
-        "pipedrive_updated": updated_count,
-        "wix_sync_response": wix_response
+        "deals_synced": len(pipedrive_deals),
+        "neighborhood": neighborhood_filter,
+        "wix_response": wix_response
     }), 200
