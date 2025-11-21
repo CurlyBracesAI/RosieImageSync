@@ -81,3 +81,12 @@ Descriptions are factual, varied in structure, and avoid promotional language. A
   - All URLs verified accessible (HTTP 200 response)
   - Zero errors during upload, all 15 deals updated successfully
   - Created verification documentation: BROOKLYN_QUEENS_UPLOAD_VERIFICATION.md
+
+- **2025-11-21**: Midtown East Make.com AI Processing - Part 1 Complete, Part 2 Pending
+  - Successfully processed 13/15 Midtown East deals with AI-generated alt text and tooltips
+  - Processed deals: 1925, 2573, 2859, 2908, 3419, 4181, 4339, 4359, 4634, 4789, 4806, 5482, 6041
+  - All descriptions now use address-based content (e.g., "Furnished office at 59 East 54th Street")
+  - Make.com timeout hit at 40-minute mark on deal 6148
+  - **Remaining: 2 deals** - Need to process deal 6148 and identify the 15th deal ID from Pipedrive
+  - Created workflow guide: MIDTOWN_EAST_PART2_MAKE_WORKFLOW_GUIDE.md
+  - Recommended: Create new Make.com scenario for final 2 deals to avoid timeout
