@@ -272,17 +272,17 @@ CRITICAL RULES:
 
 Return JSON with:
 - alt_text: VERY SHORT - exactly 8-14 words. Describe the scene functionally for screen readers.
-- tooltip_text: Slightly longer - exactly 20-30 words. More descriptive for the website visitor, but still lean and factual.
+- tooltip_text: Slightly longer - exactly 20-30 words. More descriptive scene for the website visitor, but still lean and factual.
 
 Example variations (all good - notice different structures):
-{{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office at {location_ref} in {neighborhood} features accessible entrance and reception space for therapy and medical practices."}}
+{{"alt_text": "Modern office entrance with glass doors and reception area", "tooltip_text": "Commercial office at {location_ref} in {neighborhood}, features accessible entrance and reception space for therapy and medical practices."}}
 
-{{"alt_text": "Office interior showing desk, chairs, and natural window lighting", "tooltip_text": "Furnished office at {location_ref} in {neighborhood} offers natural light, seating area, and workspace setup for professional practices."}}
+{{"alt_text": "Office interior showing desk, chairs, and natural window lighting", "tooltip_text": "Furnished office at {location_ref} in {neighborhood}, offers natural light, seating area, and workspace setup for professional practices."}}
 
-{{"alt_text": "Building exterior with brick facade and street-level entrance", "tooltip_text": "Office building at {location_ref} in {neighborhood} provides commercial space for healthcare and wellness professionals."}}
+{{"alt_text": "Building exterior with brick facade and street-level entrance", "tooltip_text": "Office building at {location_ref} in {neighborhood}, provides commercial space for healthcare and wellness professionals."}}
 
 Example BAD (promotional or repetitive):
-{{"alt_text": "Professional office space suitable for wellness professionals", "tooltip_text": "Professional office space suitable for therapists and medical professionals."}}"""
+{{"alt_text": "Professional office space suitable for wellness professionals", "tooltip_text": "Professional office space suitable for therapists and medical professionals seeking office space."}}"""
         
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -351,11 +351,35 @@ def rosie_images():
         except (ValueError, TypeError):
             return jsonify({"status": "error", "message": "picture_number must be a valid integer"}), 400
     
-    # Clean neighborhood: extract just the neighborhood name from path like "Neighborhood Listing Images/Upper West Side/2560/1.jpg"
+    # Clean neighborhood: remove deal_id and S3 folder artifacts
+    print(f"DEBUG: neighborhood before cleaning: '{neighborhood}'")
+    
+    # Remove deal_id if it's appended (e.g., "Brooklyn_Queens_AWS_S3/2561" -> "Brooklyn_Queens_AWS_S3")
+    if "/" in neighborhood:
+        parts = neighborhood.split("/")
+        # Take the first part (S3 folder name) and ignore the deal_id
+        neighborhood = parts[0]
+    
+    # Map S3 folder names to human-readable neighborhood names
+    s3_to_neighborhood = {
+        "Brooklyn_Queens_AWS_S3": "Brooklyn | Queens",
+        "Midtown_East_Gr_Cent_AWS_S3": "Midtown East",
+        "UnSQ_Gren_Villl_AWS_S3": "West Village",
+        "Upper_West_Side_AWS_S3": "Upper West Side",
+        "Upper_East_Side_AWS_S3": "Upper East Side"
+    }
+    
+    # If neighborhood is an S3 folder name, convert it
+    if neighborhood in s3_to_neighborhood:
+        neighborhood = s3_to_neighborhood[neighborhood]
+    
+    # Also handle old pipe-separated names from Pipedrive address field
     if "/" in neighborhood:
         parts = neighborhood.split("/")
         if len(parts) >= 2 and parts[0] == "Neighborhood Listing Images":
             neighborhood = parts[1]
+    
+    print(f"DEBUG: neighborhood after cleaning: '{neighborhood}'")
     
     # Auto-detect picture_number from URL if not provided
     # URL format: .../2560/1.jpeg or .../2560/2.jpeg
