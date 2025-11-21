@@ -36,3 +36,12 @@ externalPort = 80
 [[ports]]
 localPort = 37267
 externalPort = 3000
+
+[[ports]]
+localPort = 46065
+externalPort = 3001
+
+[userenv]
+
+[userenv.shared]
+WIX_SITE_ID = "43a33b0d-fd85-4458-8b88-21cfc9cc4fbc"
