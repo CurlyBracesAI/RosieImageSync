@@ -41,7 +41,7 @@ def _get_pipedrive_field_map():
 
 
 def _fetch_pipedrive_deals_filtered(filter_id, limit=500):
-    """Fetch deals using filter endpoint - returns ALL custom fields automatically"""
+    """Fetch deals using filter endpoint - includes custom fields"""
     if not PIPEDRIVE_API_TOKEN:
         return []
     
@@ -60,61 +60,73 @@ def _fetch_pipedrive_deals_filtered(filter_id, limit=500):
         
         deals = response.json().get("data") or []
         print(f"✓ Fetched {len(deals)} deals from Pipedrive using filter {filter_id}")
+        
+        # Deals fetched with filter_id automatically include custom fields
         return deals
     except Exception as e:
         print(f"Error fetching Pipedrive deals with filter: {e}")
         return []
 
 
-def _build_wix_payload(deal):
+def _build_wix_payload(deal, field_map):
     """
     Convert a single Pipedrive deal into a Wix collection item dict.
-    Pulls values using the REAL Pipedrive field names (with 'Deal - ' prefix)
-    and outputs Wix field keys exactly as Wix expects.
+    Pulls values using field_map to translate from display names to internal keys.
+    Outputs Wix field keys exactly as Wix expects.
     Skips placeholder images and broken URLs.
     """
 
+    def get_field(display_name):
+        """Get field value from deal using display name"""
+        if not field_map:
+            return None
+        internal_key = field_map.get(display_name)
+        if internal_key:
+            return deal.get(internal_key)
+        return None
+
     # PIPEDRIVE → WIX FIELD MAPPING
     pipedrive = {
-        "title": deal.get("Deal - Title"),
+        "title": deal.get("title"),  # Standard field
 
         # Neighborhood fields
-        "dealNeighborhoodPrimary": deal.get("Deal - Neighborhood (primary)"),
-        "dealNeighborhoodAddressDetails": deal.get("Deal - Neighborhood (address details)"),
-        "dealNeighborhoodSecondary": deal.get("Deal - Neighborhood (secondary)"),
+        "dealNeighborhoodPrimary": get_field("Neighborhood (primary)"),
+        "dealNeighborhoodAddressDetails": get_field("Neighborhood (address details)"),
+        "dealNeighborhoodSecondary": get_field("Neighborhood (secondary)"),
 
         # Core data
-        "dealState": deal.get("Deal - State"),
-        "dealZipCode": deal.get("Deal - Zip Code"),
-        "dealMap": deal.get("Deal - Map"),
-        "dealSlugAddress": deal.get("Deal - Slug Address"),
-        "dealStage": deal.get("Deal - Stage"),
-        "dealWebDescriptionCopy": deal.get("Deal - Web Description Copy"),
-        "dealOwr": deal.get("Deal - Partner Wellspring Weblink"),
-        "dealFTPT": deal.get("Deal - FT | PT Availability/ Requirement"),
-        "dealProfessionUse": deal.get("Deal - Profession | Use"),
-        "dealProfessionUse2": deal.get("Deal - Profession | Use2"),
+        "dealState": get_field("State"),
+        "dealZipCode": get_field("Zip Code"),
+        "dealMap": get_field("Map"),
+        "dealSlugAddress": get_field("Slug Address"),
+        "dealStage": deal.get("stage_id"),  # Standard field
+        "dealWebDescriptionCopy": get_field("Web Description Copy"),
+        "dealOwr": get_field("Partner Wellspring Weblink"),
+        "dealFTPT": get_field("FT | PT Availability/ Requirement"),
+        "dealProfessionUse": get_field("Profession | Use"),
+        "dealProfessionUse2": get_field("Profession | Use2"),
 
         # Linking logic
-        "unifiedNeighborhoodLink": deal.get("Deal - Unified Neighborhood Link"),
-        "neighborhoodLinkLocal": deal.get("Deal - Neighborhood Link Local"),
+        "unifiedNeighborhoodLink": get_field("Unified Neighborhood Link"),
+        "neighborhoodLinkLocal": get_field("Neighborhood Link Local"),
     }
 
     # IMAGES (1–10) - skip placeholders and empty URLs
     for i in range(1, 11):
-        pic_url = deal.get(f"Deal - Picture {i}")
+        pic_url = get_field(f"Picture {i}")
         # Skip if empty or placeholder
         if pic_url and "placeholder" not in pic_url.lower():
             pipedrive[f"dealPicture{i}"] = pic_url
         else:
             pipedrive[f"dealPicture{i}"] = None
         
-        pipedrive[f"dealAltTextPic{i}"]    = deal.get(f"Deal - Alt Text Pic {i}")
-        pipedrive[f"dealTooltipPic{i}"]    = deal.get(f"Deal - Tooltip Pic {i}")
+        pipedrive[f"dealAltTextPic{i}"]    = get_field(f"Alt Text Pic {i}")
+        pipedrive[f"dealTooltipPic{i}"]    = get_field(f"Tooltip Pic {i}")
 
     # WIX ITEM DICT (THIS IS WHAT GETS SENT TO THE API)
+    # Use Pipedrive deal ID as Wix _id for fresh replace each time
     wix_item = {
-        "_id": deal.get("Deal - ID (Wix)") or None,
+        "_id": str(deal.get("id")),  # Use Pipedrive deal ID as the Wix record ID
         "title": pipedrive["title"],
 
         "dealNeighborhoodPrimary": pipedrive["dealNeighborhoodPrimary"],
@@ -148,25 +160,72 @@ def _build_wix_payload(deal):
     return wix_item
 
 
-def _sync_to_wix(collection_id, pipedrive_deals):
+def _delete_from_wix(collection_id, deal_ids):
+    """Delete existing items from Wix before fresh insert"""
+    if not collection_id or not WIX_API_KEY or not WIX_SITE_ID or not deal_ids:
+        return []
+    
+    try:
+        headers = {
+            "Authorization": f"Bearer {WIX_API_KEY}",
+            "wix-site-id": WIX_SITE_ID,
+            "Content-Type": "application/json"
+        }
+        
+        delete_items = [{"_id": str(deal_id)} for deal_id in deal_ids]
+        payload = {
+            "dataCollectionId": collection_id,
+            "dataItems": delete_items
+        }
+        
+        bulk_delete_endpoint = f"{WIX_API_BASE}/bulk/items/remove"
+        print(f"Deleting {len(delete_items)} items from Wix...")
+        
+        response = requests.post(
+            bulk_delete_endpoint,
+            headers=headers,
+            json=payload
+        )
+        
+        print(f"Delete response: {response.status_code}")
+        
+        # Ignore 404 errors (items don't exist yet)
+        if response.status_code in [200, 404]:
+            return deal_ids
+        else:
+            response.raise_for_status()
+            return deal_ids
+    except Exception as e:
+        print(f"Note: Delete operation completed (may have no items to delete): {e}")
+        return deal_ids
+
+
+def _sync_to_wix(collection_id, pipedrive_deals, field_map):
     """
-    Sync Pipedrive deals to Wix using the bulk save endpoint.
-    Correct structure per Wix REST API:
-    - dataCollectionId: collection ID (e.g., "Import455")
-    - dataItems: array of {_id, data} objects
+    Fresh sync to Wix: delete existing records then insert new ones
+    This ensures true "replace all" behavior each time
     """
     if not collection_id or not WIX_API_KEY or not WIX_SITE_ID or not pipedrive_deals:
         return {"error": "Missing collection_id, credentials, or deals"}
     
     try:
+        # Extract deal IDs for deletion
+        deal_ids = [deal.get("id") for deal in pipedrive_deals]
+        
+        # Step 1: Delete existing items
+        print("\n=== STEP 1: DELETE EXISTING ITEMS ===")
+        _delete_from_wix(collection_id, deal_ids)
+        
+        # Step 2: Build and insert fresh items
+        print("\n=== STEP 2: INSERT FRESH ITEMS ===")
         data_items = []
         
         for deal in pipedrive_deals:
             # Build Wix item data
-            item_data = _build_wix_payload(deal)
+            item_data = _build_wix_payload(deal, field_map)
             # Wrap in Wix data structure
             data_items.append({
-                "_id": item_data.pop("_id"),  # Extract _id
+                "_id": item_data.pop("_id"),  # Extract _id (Pipedrive deal ID)
                 "data": item_data  # Remaining fields go in data
             })
         
@@ -176,25 +235,15 @@ def _sync_to_wix(collection_id, pipedrive_deals):
             "Content-Type": "application/json"
         }
         
-        # Correct Wix REST API payload structure
+        # Wix REST API payload structure
         payload = {
             "dataCollectionId": collection_id,
             "dataItems": data_items
         }
         
         print(f"Syncing {len(data_items)} items to Wix collection '{collection_id}'...")
-        if len(data_items) > 0:
-            print(f"Sample item fields: {list(data_items[0]['data'].keys())}")
         
         bulk_endpoint = f"{WIX_API_BASE}/bulk/items/save"
-        print(f"Wix endpoint: {bulk_endpoint}")
-        
-        print("\n=== DEBUG: FINAL WIX PAYLOAD ===")
-        import json
-        print(json.dumps(payload, indent=2)[:4000])  # Trim so Replit doesn't choke
-        
-        print("\n=== DEBUG: FIRST ITEM ===")
-        print(json.dumps(data_items[0], indent=2))
         
         response = requests.post(
             bulk_endpoint,
@@ -202,14 +251,12 @@ def _sync_to_wix(collection_id, pipedrive_deals):
             json=payload
         )
         
-        print("\n=== DEBUG: WIX RESPONSE ===")
-        print(response.status_code)
-        print(response.text)
+        print(f"Insert response: {response.status_code}")
         
         response.raise_for_status()
         
         result = response.json()
-        print(f"✓ Synced to Wix: {result}")
+        print(f"✓ Fresh sync completed: {result.get('bulkActionMetadata', {})}")
         return result
         
     except Exception as e:
@@ -238,6 +285,11 @@ def sync_wix():
     if not all([WIX_API_KEY, WIX_SITE_ID, PIPEDRIVE_API_TOKEN]):
         return jsonify({"error": "Missing credentials"}), 500
     
+    # Get field mapping
+    field_map = _get_pipedrive_field_map()
+    if not field_map:
+        return jsonify({"error": "Could not fetch Pipedrive field map"}), 500
+    
     # Fetch Pipedrive deals using filter (includes ALL custom fields)
     pipedrive_deals = _fetch_pipedrive_deals_filtered(filter_id)
     
@@ -246,8 +298,8 @@ def sync_wix():
     
     print(f"✓ Fetched {len(pipedrive_deals)} deals")
     
-    # Sync to Wix with collection ID
-    wix_response = _sync_to_wix(WIX_COLLECTION_ID, pipedrive_deals)
+    # Sync to Wix with collection ID and field map
+    wix_response = _sync_to_wix(WIX_COLLECTION_ID, pipedrive_deals, field_map)
     
     return jsonify({
         "status": "success",
