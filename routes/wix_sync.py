@@ -67,60 +67,29 @@ def _get_pipedrive_field_map():
         return None
 
 
-def _fetch_pipedrive_deals(neighborhood_filter=None):
-    """Fetch all open deals from Pipedrive with full custom field data"""
+def _fetch_pipedrive_deals_filtered(filter_id, limit=500):
+    """Fetch deals using filter endpoint - returns ALL custom fields automatically"""
     if not PIPEDRIVE_API_TOKEN:
         return []
     
-    deals = []
-    start = 0
-    limit = 500
-    
     try:
-        # First pass: get list of deal IDs
-        while True:
-            response = requests.get(
-                f"{PIPEDRIVE_BASE}/deals",
-                params={
-                    "api_token": PIPEDRIVE_API_TOKEN,
-                    "start": start,
-                    "limit": limit,
-                    "status": "open"
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
-            batch = data.get("data", [])
-            
-            if not batch:
-                break
-            
-            # For each deal, fetch full details including custom fields
-            for deal_summary in batch:
-                try:
-                    deal_id = deal_summary.get("id")
-                    detail_response = requests.get(
-                        f"{PIPEDRIVE_BASE}/deals/{deal_id}",
-                        params={"api_token": PIPEDRIVE_API_TOKEN}
-                    )
-                    detail_response.raise_for_status()
-                    full_deal = detail_response.json().get("data", {})
-                    deals.append(full_deal)
-                except Exception as e:
-                    print(f"Warning: Could not fetch full details for deal {deal_summary.get('id')}: {e}")
-                    # Fallback to summary if detail fails
-                    deals.append(deal_summary)
-            
-            pagination = data.get("additional_data", {}).get("pagination", {})
-            if not pagination.get("more_items_in_collection"):
-                break
-            
-            start = pagination.get("next_start", 0)
+        url = f"{PIPEDRIVE_BASE}/deals"
+        params = {
+            "api_token": PIPEDRIVE_API_TOKEN,
+            "filter_id": filter_id,
+            "limit": limit,
+            "start": 0
+        }
+        headers = {"Accept": "application/json"}
         
-        print(f"✓ Fetched {len(deals)} deals from Pipedrive (with custom fields)")
+        response = requests.get(url, params=params, headers=headers)
+        response.raise_for_status()
+        
+        deals = response.json().get("data") or []
+        print(f"✓ Fetched {len(deals)} deals from Pipedrive using filter {filter_id}")
         return deals
     except Exception as e:
-        print(f"Error fetching Pipedrive deals: {e}")
+        print(f"Error fetching Pipedrive deals with filter: {e}")
         return []
 
 
@@ -239,24 +208,23 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
 @bp_wix_sync.route('/sync-wix', methods=['POST', 'GET'])
 def sync_wix():
     """
-    Sync Pipedrive deals to Wix collection.
+    Sync Pipedrive deals to Wix collection using filter-based approach.
     
     Query params:
-    - neighborhood: Filter by neighborhood (e.g., "Upper West Side")
+    - filter_id: Pipedrive filter ID (required) - returns ONLY deals matching that filter
     
     Usage:
-    - GET /sync-wix                                    # Sync all neighborhoods
-    - GET /sync-wix?neighborhood=Upper%20West%20Side   # Sync one neighborhood
+    - GET /sync-wix?filter_id=<FILTER_ID>   # Sync deals from specific Pipedrive filter
     """
-    neighborhood_filter = request.args.get('neighborhood')
-    if neighborhood_filter:
-        print(f"✓ Filtering by neighborhood: {neighborhood_filter}")
+    filter_id = request.args.get('filter_id')
+    if not filter_id:
+        return jsonify({"error": "filter_id query parameter is required"}), 400
+    
+    print(f"✓ Using Pipedrive filter: {filter_id}")
     
     # Validate credentials
     if not all([WIX_API_KEY, WIX_SITE_ID, PIPEDRIVE_API_TOKEN]):
-        return jsonify({
-            "error": "Missing credentials"
-        }), 500
+        return jsonify({"error": "Missing credentials"}), 500
     
     # Get Wix collection ID
     collection_id = _get_wix_collection_id()
@@ -272,47 +240,13 @@ def sync_wix():
     
     print(f"✓ Built Pipedrive field map")
     
-    # Fetch Pipedrive deals
-    pipedrive_deals = _fetch_pipedrive_deals()
+    # Fetch Pipedrive deals using filter (includes ALL custom fields)
+    pipedrive_deals = _fetch_pipedrive_deals_filtered(filter_id)
     
     if not pipedrive_deals:
-        return jsonify({"error": "No Pipedrive deals found"}), 400
+        return jsonify({"error": "No Pipedrive deals found for this filter"}), 400
     
-    # Debug: Show what neighborhood data looks like
-    if neighborhood_filter and pipedrive_deals:
-        deal = pipedrive_deals[0]
-        neighborhood_key = field_map.get("Neighborhood (primary)")
-        print("\n=== DEBUG FIELD KEY CHECK ===")
-        for k, v in deal.items():
-            if "neigh" in k.lower() or "hood" in k.lower():
-                print("Key:", k, "Value:", repr(v))
-        print("Internal neighborhood key:", neighborhood_key)
-        print("Value via internal key:", repr(deal.get(neighborhood_key)))
-        print("ALL KEYS:", list(deal.keys())[:50])
-        print("=== END DEBUG ===\n")
-    
-    # Filter by neighborhood if specified
-    if neighborhood_filter and field_map:
-        neighborhood_key = field_map.get("Neighborhood (primary)")
-        if neighborhood_key:
-            filtered_deals = []
-            for deal in pipedrive_deals:
-                deal_neighborhood = deal.get(neighborhood_key)
-                # Handle both label strings and dict objects with 'label' property
-                if isinstance(deal_neighborhood, dict):
-                    label = deal_neighborhood.get("label", "")
-                else:
-                    label = str(deal_neighborhood) if deal_neighborhood else ""
-                if label == neighborhood_filter:
-                    filtered_deals.append(deal)
-            print(f"✓ Filtered to {len(filtered_deals)} deals in {neighborhood_filter}")
-            pipedrive_deals = filtered_deals
-    
-    if not pipedrive_deals:
-        return jsonify({
-            "message": "No deals found for specified neighborhood",
-            "neighborhood": neighborhood_filter
-        }), 200
+    print(f"✓ Fetched {len(pipedrive_deals)} deals")
     
     # Sync to Wix
     wix_response = _sync_to_wix(collection_id, pipedrive_deals, field_map)
@@ -320,6 +254,6 @@ def sync_wix():
     return jsonify({
         "status": "success",
         "deals_synced": len(pipedrive_deals),
-        "neighborhood": neighborhood_filter,
+        "filter_id": filter_id,
         "wix_response": wix_response
     }), 200
