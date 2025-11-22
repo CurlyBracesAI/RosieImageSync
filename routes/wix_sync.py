@@ -110,45 +110,45 @@ def _fetch_pipedrive_deals(neighborhood_filter=None):
 
 
 def _build_wix_payload(pipedrive_deal, field_map):
-    """Convert Pipedrive deal to Wix item data payload using correct Wix field keys"""
+    """Convert Pipedrive deal to Wix item data payload using exact Pipedrive field names"""
     if not field_map:
         return {}
     
     data = {}
     
-    # Map Pipedrive fields to Wix field KEYS (not display names)
-    # These are the actual field keys from Wix API (e.g., dealPicture1, dealAltTextPic1)
+    # Use exact Pipedrive display names - NO "Deal - " prefix
     field_mappings = {
-        "Deal - ID (Wix)": "dealId",
-        "Deal - Title": "title",
-        "Deal - Order": "dealOrder",
-        "Deal - Neighborhood (primary)": "dealNeighborhood",
-        "Deal - Neighborhood (secondary)": "neighborhoodSecondary",
-        "Deal - Neighborhood (address details)": "dealNeighborhoodAddressDetails",
-        "Deal - State": "dealState",
-        "Deal - Zip Code": "dealZipCode",
-        "Deal - Web Description Copy": "dealWebDescriptionCopy",
-        "Deal - Partner Wellspring Weblink": "dealOwnerWellspringWeblink",
-        "Deal - FT | PT Availability/ Requirement": "dealFtPt",
-        "Deal - Profession | Use": "dealProfessionUse",
-        "Deal - Profession | Use2": "dealProfessionUse2",
+        "ID (Wix)": "dealId",
+        "Title": "title",
+        "Order": "dealOrder",
+        "Neighborhood (primary)": "dealNeighborhood",
+        "Neighborhood (secondary)": "neighborhoodSecondary",
+        "Neighborhood (address details)": "dealNeighborhoodAddressDetails",
+        "State": "dealState",
+        "Zip Code": "dealZipCode",
+        "Web Description Copy": "dealWebDescriptionCopy",
+        "Partner Wellspring Weblink": "dealOwnerWellspringWeblink",
+        "FT | PT Availability/ Requirement": "dealFtPt",
+        "Profession | Use": "dealProfessionUse",
+        "Profession | Use2": "dealProfessionUse2",
+        "Unified Neighborhood Link": "unifiedNeighborhoodLink",
+        "Neighborhood Link Local": "neighborhoodLinkLocal",
+        "Slug Address": "slugAddress",
+        "Map": "map",
     }
     
-    # Add picture + alt/tooltip fields with correct Wix keys
+    # Add picture + alt/tooltip fields (1-10)
     for i in range(1, 11):
-        field_mappings[f"Deal - Picture {i}"] = f"dealPicture{i}"
-        field_mappings[f"Deal - Alt Text Pic {i}"] = f"dealAltTextPic{i}"
-        field_mappings[f"Deal - Tooltip Pic {i}"] = f"dealTooltipPic{i}"
+        field_mappings[f"Picture {i}"] = f"dealPicture{i}"
+        field_mappings[f"Alt Text Pic {i}"] = f"dealAltTextPic{i}"
+        field_mappings[f"Tooltip Pic {i}"] = f"dealTooltipPic{i}"
     
+    # Map Pipedrive fields to Wix payload
     for pd_field, wix_key in field_mappings.items():
         pd_key = field_map.get(pd_field)
         value = pipedrive_deal.get(pd_key) if pd_key else None
-        # Include empty strings and None values to ensure field presence
         if value is not None and value != "":
             data[wix_key] = value
-        # Debug: Print what we're looking for vs what we found
-        if pd_field == "Deal - Title":  # Just check one field for debugging
-            print(f"  Looking for: {pd_field} -> pd_key={pd_key}, value={value}")
     
     return data
 
@@ -265,7 +265,7 @@ def sync_wix():
     
     # Filter by neighborhood if specified
     if neighborhood_filter and field_map:
-        neighborhood_key = field_map.get("Deal - Neighborhood (primary)")
+        neighborhood_key = field_map.get("Neighborhood (primary)")
         if neighborhood_key:
             filtered_deals = []
             for deal in pipedrive_deals:
