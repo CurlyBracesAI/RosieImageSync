@@ -84,7 +84,8 @@ def _fetch_pipedrive_deals(neighborhood_filter=None):
                     "api_token": PIPEDRIVE_API_TOKEN,
                     "start": start,
                     "limit": limit,
-                    "status": "open"
+                    "status": "open",
+                    "include_custom_fields": "1"
                 }
             )
             response.raise_for_status()
