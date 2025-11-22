@@ -112,13 +112,16 @@ After Upper East Side completes, sync all 5 neighborhoods to Wix website via Wix
   - Each item received unique Wix ID and INSERT action confirmation
   - Ready to sync remaining neighborhoods: Brooklyn|Queens, Midtown East, West Village, Upper East Side
 
-- **2025-11-22**: Wix Sync Function Optimization - COMPLETE ✅
+- **2025-11-22**: Wix Sync Function Optimization & XML Error Fix - COMPLETE ✅
   - Replaced complex field mapping logic with simplified `_build_wix_payload` function
   - New function directly accesses Pipedrive fields using "Deal - " prefix convention
-  - Removes dependency on Pipedrive field map lookup (simpler, faster processing)
-  - Tested with Upper West Side (23 deals): 100% success rate, 0 failures
-  - Function correctly pulls: titles, neighborhoods, addresses, pictures 1-10, alt text, tooltips
-  - Updated `routes/wix_sync.py` to use new payload builder
+  - **Fixed XML errors**: Added placeholder image filtering to prevent broken S3 URLs
+  - **Root cause identified**: 5 UWS deals had placeholder images (403 Forbidden) + 1 deal with missing URL
+  - Added validation to skip placeholder images and empty URLs before sending to Wix
+  - Re-synced Upper West Side: 15/15 deals (100% success, 0 failures)
+  - Alt text and tooltip descriptions properly synced and preserved
+  - Function correctly pulls: titles, neighborhoods, addresses, valid pictures 1-10, alt text, tooltips
+  - Updated `routes/wix_sync.py` with URL validation logic
   - Ready for bulk syncing of all remaining neighborhoods to Wix
 
 - **2025-11-21**: Upper East Side Make.com AI Processing - IN PROGRESS 🔄

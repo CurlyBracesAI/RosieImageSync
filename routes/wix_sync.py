@@ -71,6 +71,7 @@ def _build_wix_payload(deal):
     Convert a single Pipedrive deal into a Wix collection item dict.
     Pulls values using the REAL Pipedrive field names (with 'Deal - ' prefix)
     and outputs Wix field keys exactly as Wix expects.
+    Skips placeholder images and broken URLs.
     """
 
     # PIPEDRIVE → WIX FIELD MAPPING
@@ -99,9 +100,15 @@ def _build_wix_payload(deal):
         "neighborhoodLinkLocal": deal.get("Deal - Neighborhood Link Local"),
     }
 
-    # IMAGES (1–10)
+    # IMAGES (1–10) - skip placeholders and empty URLs
     for i in range(1, 11):
-        pipedrive[f"dealPicture{i}"]       = deal.get(f"Deal - Picture {i}")
+        pic_url = deal.get(f"Deal - Picture {i}")
+        # Skip if empty or placeholder
+        if pic_url and "placeholder" not in pic_url.lower():
+            pipedrive[f"dealPicture{i}"] = pic_url
+        else:
+            pipedrive[f"dealPicture{i}"] = None
+        
         pipedrive[f"dealAltTextPic{i}"]    = deal.get(f"Deal - Alt Text Pic {i}")
         pipedrive[f"dealTooltipPic{i}"]    = deal.get(f"Deal - Tooltip Pic {i}")
 
@@ -129,11 +136,14 @@ def _build_wix_payload(deal):
         "neighborhoodLinkLocal": pipedrive["neighborhoodLinkLocal"],
     }
 
-    # Inject pictures (1–10)
+    # Inject pictures (1–10) - only if valid
     for i in range(1, 11):
-        wix_item[f"dealPicture{i}"] = pipedrive[f"dealPicture{i}"]
-        wix_item[f"dealAltTextPic{i}"] = pipedrive[f"dealAltTextPic{i}"]
-        wix_item[f"dealTooltipPic{i}"] = pipedrive[f"dealTooltipPic{i}"]
+        if pipedrive[f"dealPicture{i}"]:
+            wix_item[f"dealPicture{i}"] = pipedrive[f"dealPicture{i}"]
+        if pipedrive[f"dealAltTextPic{i}"]:
+            wix_item[f"dealAltTextPic{i}"] = pipedrive[f"dealAltTextPic{i}"]
+        if pipedrive[f"dealTooltipPic{i}"]:
+            wix_item[f"dealTooltipPic{i}"] = pipedrive[f"dealTooltipPic{i}"]
 
     return wix_item
 
