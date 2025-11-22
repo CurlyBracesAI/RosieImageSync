@@ -269,8 +269,13 @@ def sync_wix():
         if neighborhood_key:
             filtered_deals = []
             for deal in pipedrive_deals:
-                deal_neighborhood = deal.get(neighborhood_key, "")
-                if deal_neighborhood and neighborhood_filter.lower() in deal_neighborhood.lower():
+                deal_neighborhood = deal.get(neighborhood_key)
+                # Handle both label strings and dict objects with 'label' property
+                if isinstance(deal_neighborhood, dict):
+                    label = deal_neighborhood.get("label", "")
+                else:
+                    label = str(deal_neighborhood) if deal_neighborhood else ""
+                if label == neighborhood_filter:
                     filtered_deals.append(deal)
             print(f"✓ Filtered to {len(filtered_deals)} deals in {neighborhood_filter}")
             pipedrive_deals = filtered_deals
