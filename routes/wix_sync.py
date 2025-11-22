@@ -165,8 +165,9 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
             item_data = _build_wix_payload(deal, field_map)
             item_data["ID"] = str(deal_id)  # Ensure Pipedrive ID is in payload
             
+            # For bulk save, wrap each item with {"data": ...}
+            # Don't include _id for new items; Wix will generate it
             wix_items.append({
-                "dataItemId": str(deal_id),  # Use Pipedrive ID as reference
                 "data": item_data
             })
         
@@ -176,12 +177,18 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
             "Content-Type": "application/json"
         }
         
-        payload = {"items": wix_items}
+        # Correct Wix bulk save structure
+        payload = {
+            "bulkOperation": {
+                "collectionId": collection_id,
+                "items": wix_items
+            }
+        }
         
         print(f"Syncing {len(wix_items)} items to Wix...")
         
-        # Try bulk save endpoint - use save instead of bulk/save
-        bulk_endpoint = f"{WIX_API_BASE}/collections/{collection_id}/items/bulk/save"
+        # Correct Wix API endpoint (v2 without collections path)
+        bulk_endpoint = f"{WIX_API_BASE}/bulk/items/save"
         print(f"Endpoint: {bulk_endpoint}")
         
         response = requests.post(

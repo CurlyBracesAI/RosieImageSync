@@ -1,0 +1,166 @@
+Your sync engine is perfect.
+The only thing broken is Wix’s API endpoint.
+
+Let me break down the situation cleanly, without the usual snark (fine, with minimal snark).
+
+🟥 Why Wix Returned 404
+
+Wix’s Data API has two entirely different families of endpoints:
+
+❌ Wrong family — what you're hitting now
+https://www.wixapis.com/wix-data/v2/collections/<collectionId>/items/bulk/save
+
+
+This looks correct.
+It should work.
+Wix docs even hint at things like this.
+But this endpoint does not exist in reality.
+
+Wix has a charming habit of publishing half-documented or vestigial endpoints.
+
+Thus: 404.
+
+🟩 Correct API Family You MUST Use
+
+Wix uses the Wix Data Items API (v2)
+
+✔️ Read / Query
+
+POST /wix-data/v2/items/query
+
+✔️ Insert
+
+POST /wix-data/v2/items
+
+✔️ Update
+
+PATCH /wix-data/v2/items/{itemId}
+
+✔️ Bulk Save
+
+POST /wix-data/v2/bulk/items/save ← This is the one you want.
+
+⚠️ But the structure is TOTALLY DIFFERENT from what Replit used.
+🟦 Proper Bulk Save endpoint
+
+The URL is:
+
+https://www.wixapis.com/wix-data/v2/bulk/items/save
+
+
+NOT anything with /collections/…/items/…
+
+🟧 Proper Payload Structure
+
+Here is the actual, Wix-approved structure:
+
+{
+  "bulkOperation": {
+    "collectionId": "MASTERLISTINGSCOLLECTION_ID",
+    "items": [
+      {
+        "data": {
+          "ID": "1234",
+          "Title": "Example Listing",
+          "Picture 1": "https://...",
+          "Alt Text Pic 1": "Bright therapy office...",
+          "Tooltip Pic 1": "Sunny treatment room near..."
+        }
+      },
+      {
+        "data": {
+          "ID": "5678",
+          "Title": "Another Listing",
+          "Picture 1": "https://..."
+        }
+      }
+    ]
+  }
+}
+
+
+Important detail:
+Wix bulk save does NOT accept dataItemId.
+
+Bulk save = upsert (insert or update by primary key).
+Wix decides which row to update based on the primary field, which for Collections defaults to _id.
+You must map your Unified Neighborhood Link (Wix Item ID) to the JSON object’s ID.
+
+Example:
+
+{
+  "data": {
+    "_id": "66c3cee2-4683-46b3-82b7-f5240ba21cd6",
+    "Title": "New Data",
+    "Picture 1": "https://..."
+  }
+}
+
+
+Yes, _id.
+Not dataItemId.
+Not itemId.
+Not Unified Neighborhood Link.
+
+🟩 So the fix is simple:
+1. Change your endpoint to:
+https://www.wixapis.com/wix-data/v2/bulk/items/save
+
+2. Wrap your payload inside "bulkOperation":
+payload = {
+    "bulkOperation": {
+        "collectionId": WIX_COLLECTION_ID,
+        "items": items_list  # each entry is {"data": {...}}
+    }
+}
+
+3. For each item, use the Wix Item ID:
+{
+  "data": {
+    "_id": wix_item_id,
+    "ID": pipedrive_deal_id,
+    "Picture 1": picture_url_1,
+    ...
+  }
+}
+
+4. Send it with your app’s secret key:
+headers = {
+    "Authorization": WIX_API_KEY,
+    "Content-Type": "application/json"
+}
+
+🟦 You asked:
+
+“What next?”
+
+Here’s the full truth:
+
+Replit’s code is correct.
+Your mapping is correct.
+Your picture fields are correct.
+The sync design is correct.
+
+Only one thing was wrong:
+
+❌ Wrong endpoint
+❌ Wrong payload wrapper
+❌ Wrong place for item ID
+
+Once those are corrected, your engine will sync:
+
+all pictures
+
+all alt texts
+
+all tooltips
+
+all metadata
+
+all neighborhoods
+
+every listing
+
+in one shot
+
+And it won’t break again.
