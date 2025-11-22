@@ -93,32 +93,32 @@ def _fetch_pipedrive_deals_filtered(filter_id, limit=500):
         return []
 
 
-def _build_wix_payload(pipedrive_deal, field_map):
-    """Convert Pipedrive deal to Wix item data payload using exact Pipedrive field names"""
+def _build_wix_item(deal, field_map):
+    """
+    Convert a Pipedrive deal into a Wix-compliant item payload.
+    Uses field_map to map custom field display names to their internal Pipedrive keys.
+    """
     if not field_map:
         return {}
     
-    data = {}
-    
-    # Use exact Pipedrive display names - NO "Deal - " prefix
+    # Map display names to Wix field keys
     field_mappings = {
-        "ID (Wix)": "dealId",
+        # Basic fields
         "Title": "title",
-        "Order": "dealOrder",
-        "Neighborhood (primary)": "dealNeighborhood",
-        "Neighborhood (secondary)": "neighborhoodSecondary",
+        "Neighborhood (primary)": "dealNeighborhoodPrimary",
         "Neighborhood (address details)": "dealNeighborhoodAddressDetails",
         "State": "dealState",
         "Zip Code": "dealZipCode",
+        "Map": "dealMap",
+        "Slug Address": "dealSlugAddress",
+        "Stage": "dealStage",
         "Web Description Copy": "dealWebDescriptionCopy",
-        "Partner Wellspring Weblink": "dealOwnerWellspringWeblink",
-        "FT | PT Availability/ Requirement": "dealFtPt",
+        "Partner Wellspring Weblink": "dealOwr",
+        "FT | PT Availability/ Requirement": "dealFTPT",
         "Profession | Use": "dealProfessionUse",
         "Profession | Use2": "dealProfessionUse2",
         "Unified Neighborhood Link": "unifiedNeighborhoodLink",
         "Neighborhood Link Local": "neighborhoodLinkLocal",
-        "Slug Address": "slugAddress",
-        "Map": "map",
     }
     
     # Add picture + alt/tooltip fields (1-10)
@@ -127,14 +127,20 @@ def _build_wix_payload(pipedrive_deal, field_map):
         field_mappings[f"Alt Text Pic {i}"] = f"dealAltTextPic{i}"
         field_mappings[f"Tooltip Pic {i}"] = f"dealTooltipPic{i}"
     
-    # Map Pipedrive fields to Wix payload
-    for pd_field, wix_key in field_mappings.items():
-        pd_key = field_map.get(pd_field)
-        value = pipedrive_deal.get(pd_key) if pd_key else None
-        if value is not None and value != "":
-            data[wix_key] = value
+    # Build item, using field_map to lookup custom field keys
+    item = {
+        "_id": str(deal.get("id")),  # Use numeric Pipedrive ID as Wix _id
+    }
     
-    return data
+    for display_name, wix_key in field_mappings.items():
+        # Get the internal Pipedrive key for this display name
+        pd_internal_key = field_map.get(display_name)
+        if pd_internal_key:
+            value = deal.get(pd_internal_key)
+            if value is not None and value != "":
+                item[wix_key] = value
+    
+    return item
 
 
 def _sync_to_wix(collection_id, pipedrive_deals, field_map):
@@ -149,12 +155,10 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
         wix_items = []
         
         for deal in pipedrive_deals:
-            deal_id = deal.get("id")
+            # Build Wix item with correct field mapping
+            item_data = _build_wix_item(deal, field_map)
             
-            item_data = _build_wix_payload(deal, field_map)
-            item_data["ID"] = str(deal_id)  # Ensure Pipedrive ID is in payload
-            
-            # Each item needs {"data": {...}} wrapper
+            # Each item needs {"data": {...}} wrapper for Wix API
             wix_items.append({
                 "data": item_data
             })
@@ -165,13 +169,10 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
             "Content-Type": "application/json"
         }
         
-        # Wix bulk save endpoint: POST /wix-data/v2/bulk/items/save
-        # Collection ID goes in the payload bulkOperation (NOT collectionName)
+        # Try simpler payload structure - just collectionId and items
         payload = {
-            "bulkOperation": {
-                "collectionId": collection_id,
-                "items": wix_items
-            }
+            "collectionId": collection_id,
+            "items": wix_items
         }
         
         print(f"Syncing {len(wix_items)} items to Wix...")
@@ -183,10 +184,10 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
         
         print("=== FINAL PAYLOAD ===")
         import json
-        print(json.dumps(payload, indent=2))
+        print(json.dumps(payload, indent=2)[:1000])  # Truncate for readability
         
         print("=== FIRST ITEM ===")
-        print(json.dumps(payload["bulkOperation"]["items"][0], indent=2))
+        print(json.dumps(payload["items"][0], indent=2))
         
         response = requests.post(
             bulk_endpoint,
@@ -255,7 +256,7 @@ def sync_wix():
     
     print(f"✓ Fetched {len(pipedrive_deals)} deals")
     
-    # Sync to Wix with collection ID
+    # Sync to Wix with collection ID and field map
     wix_response = _sync_to_wix(collection_id, pipedrive_deals, field_map)
     
     return jsonify({

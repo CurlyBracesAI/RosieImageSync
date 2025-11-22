@@ -1,0 +1,61 @@
+def build_wix_item(deal, wix_keys):
+    """
+    Convert a Pipedrive deal into a Wix-compliant item payload.
+    `wix_keys` is the dict containing the actual Wix field keys.
+    """
+
+    return {
+        # ALWAYS send Wix ID as `_id` (or None for new items)
+        "_id": deal.get("ID (Wix)") or None,
+
+        # BASIC FIELDS
+        wix_keys["Title"]: deal.get("Title"),
+        wix_keys["Neighborhood (primary)"]: deal.get("Neighborhood (primary)"),
+        wix_keys["Neighborhood (address details)"]: deal.get("Neighborhood (address details)"),
+        wix_keys["State"]: deal.get("State"),
+        wix_keys["Zip Code"]: deal.get("Zip Code"),
+        wix_keys["Map"]: deal.get("Map"),
+        wix_keys["Slug Address"]: deal.get("Slug Address"),
+        wix_keys["Stage"]: deal.get("Stage"),
+        wix_keys["Web Description Copy"]: deal.get("Web Description Copy"),
+        wix_keys["FT | PT Availability/ Requirement"]: deal.get("FT | PT Availability/ Requirement"),
+        wix_keys["Profession | Use"]: deal.get("Profession | Use"),
+        wix_keys["Profession | Use2"]: deal.get("Profession | Use2"),
+        wix_keys["Partner Wellspring Weblink"]: deal.get("Partner Wellspring Weblink"),
+        wix_keys["Unified Neighborhood Link"]: deal.get("Unified Neighborhood Link"),
+        wix_keys["Neighborhood Link Local"]: deal.get("Neighborhood Link Local"),
+
+        # 10 IMAGES + ALT + TOOLTIP
+        wix_keys["Picture 1"]: deal.get("Picture 1"),
+        wix_keys["Picture 2"]: deal.get("Picture 2"),
+        wix_keys["Picture 3"]: deal.get("Picture 3"),
+        wix_keys["Picture 4"]: deal.get("Picture 4"),
+        wix_keys["Picture 5"]: deal.get("Picture 5"),
+        wix_keys["Picture 6"]: deal.get("Picture 6"),
+        wix_keys["Picture 7"]: deal.get("Picture 7"),
+        wix_keys["Picture 8"]: deal.get("Picture 8"),
+        wix_keys["Picture 9"]: deal.get("Picture 9"),
+        wix_keys["Picture 10"]: deal.get("Picture 10"),
+
+        wix_keys["Alt Text Pic 1"]: deal.get("Alt Text Pic 1"),
+        wix_keys["Alt Text Pic 2"]: deal.get("Alt Text Pic 2"),
+        wix_keys["Alt Text Pic 3"]: deal.get("Alt Text Pic 3"),
+        wix_keys["Alt Text Pic 4"]: deal.get("Alt Text Pic 4"),
+        wix_keys["Alt Text Pic 5"]: deal.get("Alt Text Pic 5"),
+        wix_keys["Alt Text Pic 6"]: deal.get("Alt Text Pic 6"),
+        wix_keys["Alt Text Pic 7"]: deal.get("Alt Text Pic 7"),
+        wix_keys["Alt Text Pic 8"]: deal.get("Alt Text Pic 8"),
+        wix_keys["Alt Text Pic 9"]: deal.get("Alt Text Pic 9"),
+        wix_keys["Alt Text Pic 10"]: deal.get("Alt Text Pic 10"),
+
+        wix_keys["Tooltip Pic 1"]: deal.get("Tooltip Pic 1"),
+        wix_keys["Tooltip Pic 2"]: deal.get("Tooltip Pic 2"),
+        wix_keys["Tooltip Pic 3"]: deal.get("Tooltip Pic 3"),
+        wix_keys["Tooltip Pic 4"]: deal.get("Tooltip Pic 4"),
+        wix_keys["Tooltip Pic 5"]: deal.get("Tooltip Pic 5"),
+        wix_keys["Tooltip Pic 6"]: deal.get("Tooltip Pic 6"),
+        wix_keys["Tooltip Pic 7"]: deal.get("Tooltip Pic 7"),
+        wix_keys["Tooltip Pic 8"]: deal.get("Tooltip Pic 8"),
+        wix_keys["Tooltip Pic 9"]: deal.get("Tooltip Pic 9"),
+        wix_keys["Tooltip Pic 10"]: deal.get("Tooltip Pic 10"),
+    }
