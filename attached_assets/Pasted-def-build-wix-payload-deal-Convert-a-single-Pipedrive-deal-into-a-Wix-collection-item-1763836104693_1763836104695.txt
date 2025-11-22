@@ -1,0 +1,70 @@
+def _build_wix_payload(deal):
+    """
+    Convert a single Pipedrive deal into a Wix collection item dict.
+    Pulls values using the REAL Pipedrive field names (with 'Deal - ' prefix)
+    and outputs Wix field keys exactly as Wix expects.
+    """
+
+    # PIPEDRIVE → WIX FIELD MAPPING
+    pipedrive = {
+        "title": deal.get("Deal - Title"),
+
+        # Neighborhood fields
+        "dealNeighborhoodPrimary": deal.get("Deal - Neighborhood (primary)"),
+        "dealNeighborhoodAddressDetails": deal.get("Deal - Neighborhood (address details)"),
+        "dealNeighborhoodSecondary": deal.get("Deal - Neighborhood (secondary)"),
+
+        # Core data
+        "dealState": deal.get("Deal - State"),
+        "dealZipCode": deal.get("Deal - Zip Code"),
+        "dealMap": deal.get("Deal - Map"),
+        "dealSlugAddress": deal.get("Deal - Slug Address"),
+        "dealStage": deal.get("Deal - Stage"),
+        "dealWebDescriptionCopy": deal.get("Deal - Web Description Copy"),
+        "dealOwr": deal.get("Deal - Partner Wellspring Weblink"),
+        "dealFTPT": deal.get("Deal - FT | PT Availability/ Requirement"),
+        "dealProfessionUse": deal.get("Deal - Profession | Use"),
+        "dealProfessionUse2": deal.get("Deal - Profession | Use2"),
+
+        # Linking logic
+        "unifiedNeighborhoodLink": deal.get("Deal - Unified Neighborhood Link"),
+        "neighborhoodLinkLocal": deal.get("Deal - Neighborhood Link Local"),
+    }
+
+    # IMAGES (1–10)
+    for i in range(1, 11):
+        pipedrive[f"dealPicture{i}"]       = deal.get(f"Deal - Picture {i}")
+        pipedrive[f"dealAltTextPic{i}"]    = deal.get(f"Deal - Alt Text Pic {i}")
+        pipedrive[f"dealTooltipPic{i}"]    = deal.get(f"Deal - Tooltip Pic {i}")
+
+    # WIX ITEM DICT (THIS IS WHAT GETS SENT TO THE API)
+    wix_item = {
+        "_id": deal.get("Deal - ID (Wix)") or None,
+        "title": pipedrive["title"],
+
+        "dealNeighborhoodPrimary": pipedrive["dealNeighborhoodPrimary"],
+        "dealNeighborhoodAddressDetails": pipedrive["dealNeighborhoodAddressDetails"],
+        "dealNeighborhoodSecondary": pipedrive["dealNeighborhoodSecondary"],
+
+        "dealState": pipedrive["dealState"],
+        "dealZipCode": pipedrive["dealZipCode"],
+        "dealMap": pipedrive["dealMap"],
+        "dealSlugAddress": pipedrive["dealSlugAddress"],
+        "dealStage": pipedrive["dealStage"],
+        "dealWebDescriptionCopy": pipedrive["dealWebDescriptionCopy"],
+        "dealOwr": pipedrive["dealOwr"],
+        "dealFTPT": pipedrive["dealFTPT"],
+        "dealProfessionUse": pipedrive["dealProfessionUse"],
+        "dealProfessionUse2": pipedrive["dealProfessionUse2"],
+
+        "unifiedNeighborhoodLink": pipedrive["unifiedNeighborhoodLink"],
+        "neighborhoodLinkLocal": pipedrive["neighborhoodLinkLocal"],
+    }
+
+    # Inject pictures (1–10)
+    for i in range(1, 11):
+        wix_item[f"dealPicture{i}"] = pipedrive[f"dealPicture{i}"]
+        wix_item[f"dealAltTextPic{i}"] = pipedrive[f"dealAltTextPic{i}"]
+        wix_item[f"dealTooltipPic{i}"] = pipedrive[f"dealTooltipPic{i}"]
+
+    return wix_item

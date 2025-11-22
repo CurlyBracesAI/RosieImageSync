@@ -66,58 +66,79 @@ def _fetch_pipedrive_deals_filtered(filter_id, limit=500):
         return []
 
 
-def _build_wix_item(deal, field_map):
+def _build_wix_payload(deal):
     """
-    Convert a Pipedrive deal into a Wix-compliant item payload.
-    Uses field_map to map custom field display names to their internal Pipedrive keys.
-    Returns item WITHOUT {"data": {...}} wrapper - Wix API expects items directly.
+    Convert a single Pipedrive deal into a Wix collection item dict.
+    Pulls values using the REAL Pipedrive field names (with 'Deal - ' prefix)
+    and outputs Wix field keys exactly as Wix expects.
     """
-    if not field_map:
-        return {}
-    
-    # Map display names to Wix field keys
-    field_mappings = {
-        # Basic fields
-        "Title": "title",
-        "Neighborhood (primary)": "dealNeighborhoodPrimary",
-        "Neighborhood (address details)": "dealNeighborhoodAddressDetails",
-        "State": "dealState",
-        "Zip Code": "dealZipCode",
-        "Map": "dealMap",
-        "Slug Address": "dealSlugAddress",
-        "Stage": "dealStage",
-        "Web Description Copy": "dealWebDescriptionCopy",
-        "Partner Wellspring Weblink": "dealOwr",
-        "FT | PT Availability/ Requirement": "dealFTPT",
-        "Profession | Use": "dealProfessionUse",
-        "Profession | Use2": "dealProfessionUse2",
-        "Unified Neighborhood Link": "unifiedNeighborhoodLink",
-        "Neighborhood Link Local": "neighborhoodLinkLocal",
+
+    # PIPEDRIVE → WIX FIELD MAPPING
+    pipedrive = {
+        "title": deal.get("Deal - Title"),
+
+        # Neighborhood fields
+        "dealNeighborhoodPrimary": deal.get("Deal - Neighborhood (primary)"),
+        "dealNeighborhoodAddressDetails": deal.get("Deal - Neighborhood (address details)"),
+        "dealNeighborhoodSecondary": deal.get("Deal - Neighborhood (secondary)"),
+
+        # Core data
+        "dealState": deal.get("Deal - State"),
+        "dealZipCode": deal.get("Deal - Zip Code"),
+        "dealMap": deal.get("Deal - Map"),
+        "dealSlugAddress": deal.get("Deal - Slug Address"),
+        "dealStage": deal.get("Deal - Stage"),
+        "dealWebDescriptionCopy": deal.get("Deal - Web Description Copy"),
+        "dealOwr": deal.get("Deal - Partner Wellspring Weblink"),
+        "dealFTPT": deal.get("Deal - FT | PT Availability/ Requirement"),
+        "dealProfessionUse": deal.get("Deal - Profession | Use"),
+        "dealProfessionUse2": deal.get("Deal - Profession | Use2"),
+
+        # Linking logic
+        "unifiedNeighborhoodLink": deal.get("Deal - Unified Neighborhood Link"),
+        "neighborhoodLinkLocal": deal.get("Deal - Neighborhood Link Local"),
     }
-    
-    # Add picture + alt/tooltip fields (1-10)
+
+    # IMAGES (1–10)
     for i in range(1, 11):
-        field_mappings[f"Picture {i}"] = f"dealPicture{i}"
-        field_mappings[f"Alt Text Pic {i}"] = f"dealAltTextPic{i}"
-        field_mappings[f"Tooltip Pic {i}"] = f"dealTooltipPic{i}"
-    
-    # Build item, using field_map to lookup custom field keys
-    item = {
-        "_id": str(deal.get("id")),  # Use numeric Pipedrive ID as Wix _id
+        pipedrive[f"dealPicture{i}"]       = deal.get(f"Deal - Picture {i}")
+        pipedrive[f"dealAltTextPic{i}"]    = deal.get(f"Deal - Alt Text Pic {i}")
+        pipedrive[f"dealTooltipPic{i}"]    = deal.get(f"Deal - Tooltip Pic {i}")
+
+    # WIX ITEM DICT (THIS IS WHAT GETS SENT TO THE API)
+    wix_item = {
+        "_id": deal.get("Deal - ID (Wix)") or None,
+        "title": pipedrive["title"],
+
+        "dealNeighborhoodPrimary": pipedrive["dealNeighborhoodPrimary"],
+        "dealNeighborhoodAddressDetails": pipedrive["dealNeighborhoodAddressDetails"],
+        "dealNeighborhoodSecondary": pipedrive["dealNeighborhoodSecondary"],
+
+        "dealState": pipedrive["dealState"],
+        "dealZipCode": pipedrive["dealZipCode"],
+        "dealMap": pipedrive["dealMap"],
+        "dealSlugAddress": pipedrive["dealSlugAddress"],
+        "dealStage": pipedrive["dealStage"],
+        "dealWebDescriptionCopy": pipedrive["dealWebDescriptionCopy"],
+        "dealOwr": pipedrive["dealOwr"],
+        "dealFTPT": pipedrive["dealFTPT"],
+        "dealProfessionUse": pipedrive["dealProfessionUse"],
+        "dealProfessionUse2": pipedrive["dealProfessionUse2"],
+
+        "unifiedNeighborhoodLink": pipedrive["unifiedNeighborhoodLink"],
+        "neighborhoodLinkLocal": pipedrive["neighborhoodLinkLocal"],
     }
-    
-    for display_name, wix_key in field_mappings.items():
-        # Get the internal Pipedrive key for this display name
-        pd_internal_key = field_map.get(display_name)
-        if pd_internal_key:
-            value = deal.get(pd_internal_key)
-            if value is not None and value != "":
-                item[wix_key] = value
-    
-    return item  # Return item directly, no {"data": {...}} wrapper
+
+    # Inject pictures (1–10)
+    for i in range(1, 11):
+        wix_item[f"dealPicture{i}"] = pipedrive[f"dealPicture{i}"]
+        wix_item[f"dealAltTextPic{i}"] = pipedrive[f"dealAltTextPic{i}"]
+        wix_item[f"dealTooltipPic{i}"] = pipedrive[f"dealTooltipPic{i}"]
+
+    return wix_item
 
 
-def _sync_to_wix(collection_id, pipedrive_deals, field_map):
+def _sync_to_wix(collection_id, pipedrive_deals):
     """
     Sync Pipedrive deals to Wix using the bulk save endpoint.
     Correct structure per Wix REST API:
@@ -132,7 +153,7 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
         
         for deal in pipedrive_deals:
             # Build Wix item data
-            item_data = _build_wix_item(deal, field_map)
+            item_data = _build_wix_payload(deal)
             # Wrap in Wix data structure
             data_items.append({
                 "_id": item_data.pop("_id"),  # Extract _id
@@ -207,13 +228,6 @@ def sync_wix():
     if not all([WIX_API_KEY, WIX_SITE_ID, PIPEDRIVE_API_TOKEN]):
         return jsonify({"error": "Missing credentials"}), 500
     
-    # Get field mapping
-    field_map = _get_pipedrive_field_map()
-    if not field_map:
-        return jsonify({"error": "Could not fetch Pipedrive field map"}), 500
-    
-    print(f"✓ Built Pipedrive field map")
-    
     # Fetch Pipedrive deals using filter (includes ALL custom fields)
     pipedrive_deals = _fetch_pipedrive_deals_filtered(filter_id)
     
@@ -222,8 +236,8 @@ def sync_wix():
     
     print(f"✓ Fetched {len(pipedrive_deals)} deals")
     
-    # Sync to Wix with collection ID and field map
-    wix_response = _sync_to_wix(WIX_COLLECTION_ID, pipedrive_deals, field_map)
+    # Sync to Wix with collection ID
+    wix_response = _sync_to_wix(WIX_COLLECTION_ID, pipedrive_deals)
     
     return jsonify({
         "status": "success",
