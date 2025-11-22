@@ -270,7 +270,7 @@ def sync_wix():
             filtered_deals = []
             for deal in pipedrive_deals:
                 deal_neighborhood = deal.get(neighborhood_key, "")
-                if neighborhood_filter.lower() in deal_neighborhood.lower():
+                if deal_neighborhood and neighborhood_filter.lower() in deal_neighborhood.lower():
                     filtered_deals.append(deal)
             print(f"✓ Filtered to {len(filtered_deals)} deals in {neighborhood_filter}")
             pipedrive_deals = filtered_deals
