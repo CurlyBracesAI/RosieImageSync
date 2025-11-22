@@ -143,8 +143,12 @@ def _build_wix_payload(pipedrive_deal, field_map):
     for pd_field, wix_key in field_mappings.items():
         pd_key = field_map.get(pd_field)
         value = pipedrive_deal.get(pd_key) if pd_key else None
-        if value:
+        # Include empty strings and None values to ensure field presence
+        if value is not None and value != "":
             data[wix_key] = value
+        # Debug: Print what we're looking for vs what we found
+        if pd_field == "Deal - Title":  # Just check one field for debugging
+            print(f"  Looking for: {pd_field} -> pd_key={pd_key}, value={value}")
     
     return data
 
