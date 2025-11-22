@@ -8,38 +8,11 @@ WIX_API_KEY = os.getenv("WIX_ACCESS_KEY_ID")
 WIX_SITE_ID = os.getenv("WIX_SITE_ID")
 PIPEDRIVE_API_TOKEN = os.getenv("PIPEDRIVE_API_TOKEN")
 
-WIX_COLLECTION_NAME = "MasterListingsCollection"
+WIX_COLLECTION_ID = "Import455"  # The actual collection ID (display name is "MasterListingsCollection")
 WIX_API_BASE = "https://www.wixapis.com/wix-data/v2"
 PIPEDRIVE_BASE = "https://api.pipedrive.com/v1"
 
 
-def _get_wix_collection_id():
-    """Auto-discover the Wix Collection ID by name"""
-    if not WIX_API_KEY or not WIX_SITE_ID:
-        return None
-    
-    try:
-        headers = {
-            "Authorization": WIX_API_KEY,
-            "wix-site-id": WIX_SITE_ID
-        }
-        response = requests.get(
-            f"{WIX_API_BASE}/collections",
-            headers=headers
-        )
-        response.raise_for_status()
-        data = response.json()
-        
-        collections = data.get("collections", [])
-        for coll in collections:
-            if coll.get("displayName") == WIX_COLLECTION_NAME:
-                return coll.get("id")
-        
-        print(f"Collection '{WIX_COLLECTION_NAME}' not found")
-        return None
-    except Exception as e:
-        print(f"Error fetching Wix collection ID: {e}")
-        return None
 
 
 def _get_pipedrive_field_map():
@@ -97,6 +70,7 @@ def _build_wix_item(deal, field_map):
     """
     Convert a Pipedrive deal into a Wix-compliant item payload.
     Uses field_map to map custom field display names to their internal Pipedrive keys.
+    Returns item WITHOUT {"data": {...}} wrapper - Wix API expects items directly.
     """
     if not field_map:
         return {}
@@ -140,54 +114,56 @@ def _build_wix_item(deal, field_map):
             if value is not None and value != "":
                 item[wix_key] = value
     
-    return item
+    return item  # Return item directly, no {"data": {...}} wrapper
 
 
 def _sync_to_wix(collection_id, pipedrive_deals, field_map):
     """
     Sync Pipedrive deals to Wix using the bulk save endpoint.
-    Collection ID goes in the payload bulkOperation.
+    Correct structure per Wix REST API:
+    - dataCollectionId: collection ID (e.g., "Import455")
+    - dataItems: array of {_id, data} objects
     """
     if not collection_id or not WIX_API_KEY or not WIX_SITE_ID or not pipedrive_deals:
         return {"error": "Missing collection_id, credentials, or deals"}
     
     try:
-        wix_items = []
+        data_items = []
         
         for deal in pipedrive_deals:
-            # Build Wix item with correct field mapping
+            # Build Wix item data
             item_data = _build_wix_item(deal, field_map)
-            
-            # Each item needs {"data": {...}} wrapper for Wix API
-            wix_items.append({
-                "data": item_data
+            # Wrap in Wix data structure
+            data_items.append({
+                "_id": item_data.pop("_id"),  # Extract _id
+                "data": item_data  # Remaining fields go in data
             })
         
         headers = {
-            "Authorization": WIX_API_KEY,
+            "Authorization": f"Bearer {WIX_API_KEY}",
             "wix-site-id": WIX_SITE_ID,
             "Content-Type": "application/json"
         }
         
-        # Try simpler payload structure - just collectionId and items
+        # Correct Wix REST API payload structure
         payload = {
-            "collectionId": collection_id,
-            "items": wix_items
+            "dataCollectionId": collection_id,
+            "dataItems": data_items
         }
         
-        print(f"Syncing {len(wix_items)} items to Wix...")
-        if len(wix_items) > 0:
-            print(f"Sample item data fields: {list(wix_items[0].get('data', {}).keys())}")
+        print(f"Syncing {len(data_items)} items to Wix collection '{collection_id}'...")
+        if len(data_items) > 0:
+            print(f"Sample item fields: {list(data_items[0]['data'].keys())}")
         
         bulk_endpoint = f"{WIX_API_BASE}/bulk/items/save"
         print(f"Wix endpoint: {bulk_endpoint}")
         
-        print("=== FINAL PAYLOAD ===")
+        print("\n=== DEBUG: FINAL WIX PAYLOAD ===")
         import json
-        print(json.dumps(payload, indent=2)[:1000])  # Truncate for readability
+        print(json.dumps(payload, indent=2)[:4000])  # Trim so Replit doesn't choke
         
-        print("=== FIRST ITEM ===")
-        print(json.dumps(payload["items"][0], indent=2))
+        print("\n=== DEBUG: FIRST ITEM ===")
+        print(json.dumps(data_items[0], indent=2))
         
         response = requests.post(
             bulk_endpoint,
@@ -195,12 +171,9 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
             json=payload
         )
         
-        # Print detailed error info before raising
-        if response.status_code >= 400:
-            print(f"Status: {response.status_code}")
-            print("WIX 400 ERROR RESPONSE:", response.text)
-            if len(wix_items) > 0:
-                print(f"First item data: {wix_items[0]}")
+        print("\n=== DEBUG: WIX RESPONSE ===")
+        print(response.status_code)
+        print(response.text)
         
         response.raise_for_status()
         
@@ -241,13 +214,6 @@ def sync_wix():
     
     print(f"✓ Built Pipedrive field map")
     
-    # Get Wix collection ID
-    collection_id = _get_wix_collection_id()
-    if not collection_id:
-        return jsonify({"error": f"Could not find Wix collection '{WIX_COLLECTION_NAME}'"}), 500
-    
-    print(f"✓ Found Wix Collection: {collection_id}")
-    
     # Fetch Pipedrive deals using filter (includes ALL custom fields)
     pipedrive_deals = _fetch_pipedrive_deals_filtered(filter_id)
     
@@ -257,7 +223,7 @@ def sync_wix():
     print(f"✓ Fetched {len(pipedrive_deals)} deals")
     
     # Sync to Wix with collection ID and field map
-    wix_response = _sync_to_wix(collection_id, pipedrive_deals, field_map)
+    wix_response = _sync_to_wix(WIX_COLLECTION_ID, pipedrive_deals, field_map)
     
     return jsonify({
         "status": "success",
