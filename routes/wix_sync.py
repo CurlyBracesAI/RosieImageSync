@@ -263,6 +263,19 @@ def sync_wix():
     if not pipedrive_deals:
         return jsonify({"error": "No Pipedrive deals found"}), 400
     
+    # Debug: Show what neighborhood data looks like
+    if neighborhood_filter and pipedrive_deals:
+        deal = pipedrive_deals[0]
+        neighborhood_key = field_map.get("Neighborhood (primary)")
+        print("\n=== DEBUG FIELD KEY CHECK ===")
+        for k, v in deal.items():
+            if "neigh" in k.lower() or "hood" in k.lower():
+                print("Key:", k, "Value:", repr(v))
+        print("Internal neighborhood key:", neighborhood_key)
+        print("Value via internal key:", repr(deal.get(neighborhood_key)))
+        print("ALL KEYS:", list(deal.keys())[:50])
+        print("=== END DEBUG ===\n")
+    
     # Filter by neighborhood if specified
     if neighborhood_filter and field_map:
         neighborhood_key = field_map.get("Neighborhood (primary)")
