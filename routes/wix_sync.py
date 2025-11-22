@@ -180,6 +180,9 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
         
         bulk_endpoint = f"{WIX_API_BASE}/bulk/items/save"
         print(f"Wix endpoint: {bulk_endpoint}")
+        print(f"Payload bulkOperation keys: {payload['bulkOperation'].keys()}")
+        print(f"Payload collectionId: {payload['bulkOperation'].get('collectionId')}")
+        print(f"Full payload: {payload}")
         
         response = requests.post(
             bulk_endpoint,
@@ -233,6 +236,13 @@ def sync_wix():
     
     print(f"✓ Built Pipedrive field map")
     
+    # Get Wix collection ID
+    collection_id = _get_wix_collection_id()
+    if not collection_id:
+        return jsonify({"error": f"Could not find Wix collection '{WIX_COLLECTION_NAME}'"}), 500
+    
+    print(f"✓ Found Wix Collection: {collection_id}")
+    
     # Fetch Pipedrive deals using filter (includes ALL custom fields)
     pipedrive_deals = _fetch_pipedrive_deals_filtered(filter_id)
     
@@ -241,8 +251,8 @@ def sync_wix():
     
     print(f"✓ Fetched {len(pipedrive_deals)} deals")
     
-    # Sync to Wix (collection name goes in payload, not URL)
-    wix_response = _sync_to_wix(pipedrive_deals, field_map)
+    # Sync to Wix with collection ID
+    wix_response = _sync_to_wix(collection_id, pipedrive_deals, field_map)
     
     return jsonify({
         "status": "success",
