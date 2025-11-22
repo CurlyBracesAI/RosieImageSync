@@ -110,40 +110,41 @@ def _fetch_pipedrive_deals(neighborhood_filter=None):
 
 
 def _build_wix_payload(pipedrive_deal, field_map):
-    """Convert Pipedrive deal to Wix item data payload"""
+    """Convert Pipedrive deal to Wix item data payload using correct Wix field keys"""
     if not field_map:
         return {}
     
     data = {}
     
-    # Map all fields that exist in both systems
+    # Map Pipedrive fields to Wix field KEYS (not display names)
+    # These are the actual field keys from Wix API (e.g., dealPicture1, dealAltTextPic1)
     field_mappings = {
-        "Deal - ID (Wix)": "ID",
-        "Deal - Title": "Title",
-        "Deal - Order": "Order",
-        "Deal - Neighborhood (primary)": "Neighborhood (primary)",
-        "Deal - Neighborhood (secondary)": "Neighborhood (secondary)",
-        "Deal - Neighborhood (address details)": "Neighborhood (address details)",
-        "Deal - State": "State",
-        "Deal - Zip Code": "Zip Code",
-        "Deal - Web Description Copy": "Web Description Copy",
-        "Deal - Partner Wellspring Weblink": "Partner Wellspring Weblink",
-        "Deal - FT | PT Availability/ Requirement": "FT | PT Availability/ Requirement",
-        "Deal - Profession | Use": "Profession | Use",
-        "Deal - Profession | Use2": "Profession | Use2",
+        "Deal - ID (Wix)": "dealId",
+        "Deal - Title": "title",
+        "Deal - Order": "dealOrder",
+        "Deal - Neighborhood (primary)": "dealNeighborhood",
+        "Deal - Neighborhood (secondary)": "neighborhoodSecondary",
+        "Deal - Neighborhood (address details)": "dealNeighborhoodAddressDetails",
+        "Deal - State": "dealState",
+        "Deal - Zip Code": "dealZipCode",
+        "Deal - Web Description Copy": "dealWebDescriptionCopy",
+        "Deal - Partner Wellspring Weblink": "dealOwnerWellspringWeblink",
+        "Deal - FT | PT Availability/ Requirement": "dealFtPt",
+        "Deal - Profession | Use": "dealProfessionUse",
+        "Deal - Profession | Use2": "dealProfessionUse2",
     }
     
-    # Add picture + alt/tooltip fields
+    # Add picture + alt/tooltip fields with correct Wix keys
     for i in range(1, 11):
-        field_mappings[f"Deal - Picture {i}"] = f"Picture {i}"
-        field_mappings[f"Deal - Alt Text Pic {i}"] = f"Alt Text Pic {i}"
-        field_mappings[f"Deal - Tooltip Pic {i}"] = f"Tooltip Pic {i}"
+        field_mappings[f"Deal - Picture {i}"] = f"dealPicture{i}"
+        field_mappings[f"Deal - Alt Text Pic {i}"] = f"dealAltTextPic{i}"
+        field_mappings[f"Deal - Tooltip Pic {i}"] = f"dealTooltipPic{i}"
     
-    for pd_field, wix_field in field_mappings.items():
+    for pd_field, wix_key in field_mappings.items():
         pd_key = field_map.get(pd_field)
         value = pipedrive_deal.get(pd_key) if pd_key else None
         if value:
-            data[wix_field] = value
+            data[wix_key] = value
     
     return data
 
