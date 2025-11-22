@@ -187,13 +187,11 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
         }
         
         print(f"Syncing {len(wix_items)} items to Wix...")
-        print(f"Payload bulkOperation keys: {list(payload.get('bulkOperation', {}).keys())}")
-        print(f"collectionName value: {payload.get('bulkOperation', {}).get('collectionName')}")
-        print(f"collectionName type: {type(payload.get('bulkOperation', {}).get('collectionName'))}")
+        if len(wix_items) > 0:
+            print(f"Sample item data fields: {list(wix_items[0].get('data', {}).keys())}")
         
         # Correct Wix API endpoint (v2 without collections path)
         bulk_endpoint = f"{WIX_API_BASE}/bulk/items/save"
-        print(f"Endpoint: {bulk_endpoint}")
         
         response = requests.post(
             bulk_endpoint,
@@ -205,7 +203,8 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
         if response.status_code >= 400:
             print(f"Status: {response.status_code}")
             print(f"Response: {response.text}")
-            print(f"Payload sent: {payload}")
+            if len(wix_items) > 0:
+                print(f"First item data: {wix_items[0]}")
         
         response.raise_for_status()
         
