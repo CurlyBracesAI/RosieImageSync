@@ -68,7 +68,7 @@ def _get_pipedrive_field_map():
 
 
 def _fetch_pipedrive_deals(neighborhood_filter=None):
-    """Fetch all open deals from Pipedrive, optionally filtered by neighborhood"""
+    """Fetch all open deals from Pipedrive with full custom field data"""
     if not PIPEDRIVE_API_TOKEN:
         return []
     
@@ -77,6 +77,7 @@ def _fetch_pipedrive_deals(neighborhood_filter=None):
     limit = 500
     
     try:
+        # First pass: get list of deal IDs
         while True:
             response = requests.get(
                 f"{PIPEDRIVE_BASE}/deals",
@@ -84,8 +85,7 @@ def _fetch_pipedrive_deals(neighborhood_filter=None):
                     "api_token": PIPEDRIVE_API_TOKEN,
                     "start": start,
                     "limit": limit,
-                    "status": "open",
-                    "include_custom_fields": "1"
+                    "status": "open"
                 }
             )
             response.raise_for_status()
@@ -95,7 +95,21 @@ def _fetch_pipedrive_deals(neighborhood_filter=None):
             if not batch:
                 break
             
-            deals.extend(batch)
+            # For each deal, fetch full details including custom fields
+            for deal_summary in batch:
+                try:
+                    deal_id = deal_summary.get("id")
+                    detail_response = requests.get(
+                        f"{PIPEDRIVE_BASE}/deals/{deal_id}",
+                        params={"api_token": PIPEDRIVE_API_TOKEN}
+                    )
+                    detail_response.raise_for_status()
+                    full_deal = detail_response.json().get("data", {})
+                    deals.append(full_deal)
+                except Exception as e:
+                    print(f"Warning: Could not fetch full details for deal {deal_summary.get('id')}: {e}")
+                    # Fallback to summary if detail fails
+                    deals.append(deal_summary)
             
             pagination = data.get("additional_data", {}).get("pagination", {})
             if not pagination.get("more_items_in_collection"):
@@ -103,7 +117,7 @@ def _fetch_pipedrive_deals(neighborhood_filter=None):
             
             start = pagination.get("next_start", 0)
         
-        print(f"✓ Fetched {len(deals)} deals from Pipedrive")
+        print(f"✓ Fetched {len(deals)} deals from Pipedrive (with custom fields)")
         return deals
     except Exception as e:
         print(f"Error fetching Pipedrive deals: {e}")
