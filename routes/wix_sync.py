@@ -137,13 +137,13 @@ def _build_wix_payload(pipedrive_deal, field_map):
     return data
 
 
-def _sync_to_wix(pipedrive_deals, field_map):
+def _sync_to_wix(collection_id, pipedrive_deals, field_map):
     """
     Sync Pipedrive deals to Wix using the bulk save endpoint.
-    Collection name goes in the payload, not the URL.
+    Collection ID goes in the payload bulkOperation.
     """
-    if not WIX_API_KEY or not WIX_SITE_ID or not pipedrive_deals:
-        return {"error": "Missing credentials or deals"}
+    if not collection_id or not WIX_API_KEY or not WIX_SITE_ID or not pipedrive_deals:
+        return {"error": "Missing collection_id, credentials, or deals"}
     
     try:
         wix_items = []
@@ -166,10 +166,10 @@ def _sync_to_wix(pipedrive_deals, field_map):
         }
         
         # Wix bulk save endpoint: POST /wix-data/v2/bulk/items/save
-        # Collection name goes in the payload bulkOperation
+        # Collection ID goes in the payload bulkOperation (NOT collectionName)
         payload = {
             "bulkOperation": {
-                "collectionName": WIX_COLLECTION_NAME,
+                "collectionId": collection_id,
                 "items": wix_items
             }
         }
