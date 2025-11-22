@@ -180,9 +180,13 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
         
         bulk_endpoint = f"{WIX_API_BASE}/bulk/items/save"
         print(f"Wix endpoint: {bulk_endpoint}")
-        print(f"Payload bulkOperation keys: {payload['bulkOperation'].keys()}")
-        print(f"Payload collectionId: {payload['bulkOperation'].get('collectionId')}")
-        print(f"Full payload: {payload}")
+        
+        print("=== FINAL PAYLOAD ===")
+        import json
+        print(json.dumps(payload, indent=2))
+        
+        print("=== FIRST ITEM ===")
+        print(json.dumps(payload["bulkOperation"]["items"][0], indent=2))
         
         response = requests.post(
             bulk_endpoint,
