@@ -197,6 +197,12 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
             headers=headers,
             json=payload
         )
+        
+        # Print detailed error info before raising
+        if response.status_code >= 400:
+            print(f"Status: {response.status_code}")
+            print(f"Response: {response.text}")
+        
         response.raise_for_status()
         
         result = response.json()
