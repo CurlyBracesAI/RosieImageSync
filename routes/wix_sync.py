@@ -190,7 +190,7 @@ def _sync_to_wix(pipedrive_deals, field_map):
         # Print detailed error info before raising
         if response.status_code >= 400:
             print(f"Status: {response.status_code}")
-            print(f"Response: {response.text}")
+            print("WIX 400 ERROR RESPONSE:", response.text)
             if len(wix_items) > 0:
                 print(f"First item data: {wix_items[0]}")
         
