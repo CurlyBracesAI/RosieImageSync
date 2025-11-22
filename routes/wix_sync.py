@@ -178,10 +178,10 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
             "Content-Type": "application/json"
         }
         
-        # Correct Wix bulk save structure
+        # Correct Wix bulk save structure - use collectionName, not collectionId
         payload = {
             "bulkOperation": {
-                "collectionId": collection_id,
+                "collectionName": WIX_COLLECTION_NAME,
                 "items": wix_items
             }
         }
