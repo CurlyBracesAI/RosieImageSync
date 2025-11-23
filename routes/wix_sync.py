@@ -129,19 +129,29 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
                         # Try both the value as-is and as an integer
                         if v in field_options[internal_key]:
                             converted.append(field_options[internal_key][v])
-                        elif isinstance(v, str) and int(v) in field_options[internal_key]:
+                        elif isinstance(v, str) and v.isdigit() and int(v) in field_options[internal_key]:
                             converted.append(field_options[internal_key][int(v)])
                         else:
                             converted.append(v)
                     return ", ".join(str(x) for x in converted) if converted else None
                 else:
-                    # Try both the value as-is and as an integer
-                    if value in field_options[internal_key]:
-                        converted = field_options[internal_key][value]
-                        return converted
-                    elif isinstance(value, str) and int(value) in field_options[internal_key]:
-                        converted = field_options[internal_key][int(value)]
-                        return converted
+                    # Handle comma-separated values (multi-value fields)
+                    if isinstance(value, str) and "," in value:
+                        converted = []
+                        for v in value.split(","):
+                            v = v.strip()
+                            if v in field_options[internal_key]:
+                                converted.append(field_options[internal_key][v])
+                            elif v.isdigit() and int(v) in field_options[internal_key]:
+                                converted.append(field_options[internal_key][int(v)])
+                            else:
+                                converted.append(v)
+                        return ", ".join(str(x) for x in converted) if converted else None
+                    # Single value
+                    elif value in field_options[internal_key]:
+                        return field_options[internal_key][value]
+                    elif isinstance(value, str) and value.isdigit() and int(value) in field_options[internal_key]:
+                        return field_options[internal_key][int(value)]
             return value
         return None
 
