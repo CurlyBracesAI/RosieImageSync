@@ -16,7 +16,7 @@ PIPEDRIVE_BASE = "https://api.pipedrive.com/v1"
 
 
 def _get_pipedrive_field_map():
-    """Build field map: human-readable → internal keys"""
+    """Build field map with field metadata including option mappings for dropdowns"""
     if not PIPEDRIVE_API_TOKEN:
         return None
     
@@ -29,12 +29,27 @@ def _get_pipedrive_field_map():
         fields = response.json().get("data", [])
         
         field_map = {}
+        field_options = {}  # Store option mappings: field_key → {option_id → label}
+        
         for field in fields:
             name = field.get("name", "")
             key = field.get("key", "")
             field_map[name] = key
+            
+            # Build option mappings for dropdown/select fields
+            options = field.get("options", [])
+            if options:
+                option_map = {}
+                for opt in options:
+                    opt_id = opt.get("id")
+                    opt_label = opt.get("label")
+                    if opt_id is not None and opt_label:
+                        option_map[opt_id] = opt_label
+                if option_map:
+                    field_options[key] = option_map
         
-        return field_map
+        # Return both the field map and options for use in conversion
+        return {"field_map": field_map, "field_options": field_options}
     except Exception as e:
         print(f"Error fetching Pipedrive field map: {e}")
         return None
@@ -68,13 +83,16 @@ def _fetch_pipedrive_deals_filtered(filter_id, limit=500):
         return []
 
 
-def _build_wix_payload(deal, field_map):
+def _build_wix_payload(deal, field_map, field_options=None):
     """
     Convert a single Pipedrive deal into a Wix collection item dict.
     Pulls values using field_map to translate from display names to internal keys.
+    Converts numeric option IDs to display labels using field_options.
     Outputs Wix field keys exactly as Wix expects.
     Skips placeholder images and broken URLs.
     """
+    if field_options is None:
+        field_options = {}
 
     def get_field(display_name):
         """Get field value from deal using display name"""
@@ -82,7 +100,22 @@ def _build_wix_payload(deal, field_map):
             return None
         internal_key = field_map.get(display_name)
         if internal_key:
-            return deal.get(internal_key)
+            value = deal.get(internal_key)
+            # Convert numeric option IDs to labels if this field has options
+            if value is not None and internal_key in field_options:
+                # Handle both single values and lists
+                if isinstance(value, list):
+                    converted = []
+                    for v in value:
+                        if v in field_options[internal_key]:
+                            converted.append(field_options[internal_key][v])
+                        else:
+                            converted.append(v)
+                    return ", ".join(str(x) for x in converted) if converted else None
+                else:
+                    if value in field_options[internal_key]:
+                        return field_options[internal_key][value]
+            return value
         return None
 
     # PIPEDRIVE → WIX FIELD MAPPING
@@ -102,7 +135,7 @@ def _build_wix_payload(deal, field_map):
         "dealStage": deal.get("stage_id"),  # Standard field
         "dealWebDescriptionCopy": get_field("Web Description Copy"),
         "dealOwnerWellspringWeblink": get_field("Partner Wellspring Weblink"),
-        "dealFtPt": get_field("FT | PT Availability"),
+        "dealFtPt": get_field("FT | PT Availability/ Requirement"),
         "dealProfessionUse": get_field("Profession | Use"),
         "dealProfessionUse2": get_field("Profession | Use2"),
 
@@ -200,11 +233,14 @@ def _delete_from_wix(collection_id, deal_ids):
         return deal_ids
 
 
-def _sync_to_wix(collection_id, pipedrive_deals, field_map):
+def _sync_to_wix(collection_id, pipedrive_deals, field_map, field_options=None):
     """
     Fresh sync to Wix: delete existing records then insert new ones
     This ensures true "replace all" behavior each time
     """
+    if field_options is None:
+        field_options = {}
+    
     if not collection_id or not WIX_API_KEY or not WIX_SITE_ID or not pipedrive_deals:
         return {"error": "Missing collection_id, credentials, or deals"}
     
@@ -221,8 +257,8 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map):
         data_items = []
         
         for deal in pipedrive_deals:
-            # Build Wix item data
-            item_data = _build_wix_payload(deal, field_map)
+            # Build Wix item data with field option mappings
+            item_data = _build_wix_payload(deal, field_map, field_options)
             # Wrap in Wix data structure
             data_items.append({
                 "_id": item_data.pop("_id"),  # Extract _id (Pipedrive deal ID)
@@ -285,10 +321,13 @@ def sync_wix():
     if not all([WIX_API_KEY, WIX_SITE_ID, PIPEDRIVE_API_TOKEN]):
         return jsonify({"error": "Missing credentials"}), 500
     
-    # Get field mapping
-    field_map = _get_pipedrive_field_map()
-    if not field_map:
+    # Get field mapping and options
+    field_data = _get_pipedrive_field_map()
+    if not field_data:
         return jsonify({"error": "Could not fetch Pipedrive field map"}), 500
+    
+    field_map = field_data.get("field_map", {})
+    field_options = field_data.get("field_options", {})
     
     # Fetch Pipedrive deals using filter (includes ALL custom fields)
     pipedrive_deals = _fetch_pipedrive_deals_filtered(filter_id)
@@ -298,8 +337,8 @@ def sync_wix():
     
     print(f"✓ Fetched {len(pipedrive_deals)} deals")
     
-    # Sync to Wix with collection ID and field map
-    wix_response = _sync_to_wix(WIX_COLLECTION_ID, pipedrive_deals, field_map)
+    # Sync to Wix with collection ID, field map, and field options
+    wix_response = _sync_to_wix(WIX_COLLECTION_ID, pipedrive_deals, field_map, field_options)
     
     return jsonify({
         "status": "success",

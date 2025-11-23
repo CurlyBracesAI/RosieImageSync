@@ -112,22 +112,17 @@ After Upper East Side completes, sync all 5 neighborhoods to Wix website via Wix
   - Each item received unique Wix ID and INSERT action confirmation
   - Ready to sync remaining neighborhoods: Brooklyn|Queens, Midtown East, West Village, Upper East Side
 
-- **2025-11-22**: Fresh Replace Wix Sync Implementation & Column Mapping Corrections - COMPLETE ✅
-  - Implemented true "fresh replace" sync: delete existing records, then insert fresh data
-  - Added `_delete_from_wix()` function using Wix bulk remove endpoint
-  - Sync flow: Extract Pipedrive deal IDs → Delete from Wix → Insert fresh with field mapping
-  - Uses Pipedrive deal ID as Wix _id for consistent record linking
-  - **Corrected Wix column mappings**:
-    - `dealNeighborhood` (Neighborhood primary)
-    - `neighborhoodSecondary` (Neighborhood secondary)
-    - `dealOwnerWellspringWeblink` (Partner Wellspring Weblink)
-    - `dealFtPt` (FT | PT Availability)
-  - Fixed field mapping: Now properly translates Pipedrive custom field hashes to display names
-  - **Skips placeholder images**: Filters out broken S3 URLs before sending to Wix
-  - Upper West Side test: 15/15 deals synced successfully (100% success, 0 failures)
-  - Each sync replaces all data fresh - no duplicate records or stale data
-  - Updated `routes/wix_sync.py` with corrected field mapping and `_get_pipedrive_field_map()` logic
-  - Ready for bulk syncing of all remaining neighborhoods to Wix with consistent fresh replace behavior
+- **2025-11-23**: Field Option Conversion & Numeric-to-Text Field Fix - COMPLETE ✅
+  - Enhanced `_get_pipedrive_field_map()` to fetch and store field option mappings
+  - Dropdown/select fields now convert numeric option IDs to their display labels
+  - Fixed "FT | PT Availability" field name → correct name is "FT | PT Availability/ Requirement"
+  - **Converted fields**: Neighborhood Primary, Neighborhood Secondary, Profession | Use, FT | PT Availability/ Requirement
+  - Text fields (varchar) like "State", "Zip Code", "Profession | Use2" pass through unchanged
+  - Updated `_build_wix_payload()` to use field_options for conversion
+  - Updated `_sync_to_wix()` to accept and pass field_options parameter
+  - Upper West Side test: 23/23 deals synced successfully (100% success, 0 failures)
+  - All fields now populate with correct display names instead of numeric IDs
+  - Ready for bulk syncing of all remaining neighborhoods with proper field conversions
 
 - **2025-11-21**: Upper East Side Make.com AI Processing - IN PROGRESS 🔄
   - S3 folder: Upper_East_Side_AWS_S3/
