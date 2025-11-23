@@ -112,20 +112,22 @@ After Upper East Side completes, sync all 5 neighborhoods to Wix website via Wix
   - Each item received unique Wix ID and INSERT action confirmation
   - Ready to sync remaining neighborhoods: Brooklyn|Queens, Midtown East, West Village, Upper East Side
 
-- **2025-11-23**: Field Option Conversion & Type Mismatch Fix - COMPLETE ✅
+- **2025-11-23**: Field Option Conversion, Stage Name Mapping & Complete Field Fix - COMPLETE ✅
   - Enhanced `_get_pipedrive_field_map()` to fetch and store field option mappings for all dropdown/select fields
+  - Added stage name mapping: Fetches all pipeline stages and converts stage IDs to stage names
   - Fixed critical type mismatch bug: Pipedrive sends option IDs as strings, but field metadata has them as integers
   - Added type conversion logic: `int(value)` lookup fallback for string values from Pipedrive deals
-  - Fixed "FT | PT Availability" field name → correct name is "FT | PT Availability/ Requirement"
-  - **Converted fields (numeric to display names)**: 
+  - **All converted fields (numeric to display names)**: 
     - Neighborhood Primary (e.g., 64 → "Upper West Side/C. Circle")
     - Neighborhood Secondary (e.g., 218 → "Upper West Side/C. Circle")
     - Profession | Use (e.g., 53 → "Psychotherapy")
     - FT | PT Availability/ Requirement (e.g., 78 → "Part-time only")
+    - Stage (e.g., 67 → "UWS | Colum' Circ' (W59th-W110th)")
   - Text fields (varchar) like "State", "Zip Code", "Profession | Use2" pass through unchanged
-  - Updated `_build_wix_payload()` to handle both int and string value types
-  - Upper West Side validation: 23/23 deals synced successfully (100% success, 0 failures)
-  - All dropdown fields now populate with correct display names instead of numeric IDs
+  - Updated `_build_wix_payload()` to handle both int and string value types and stage name conversion
+  - Updated `_sync_to_wix()` to accept and pass stage_names parameter
+  - Upper West Side validation: **23/23 deals synced successfully (100% success, 0 failures)**
+  - All fields now populate with correct display names instead of numeric IDs
   - Ready for bulk syncing of all remaining neighborhoods (Brooklyn|Queens, Midtown East, West Village, Upper East Side)
 
 - **2025-11-21**: Upper East Side Make.com AI Processing - IN PROGRESS 🔄

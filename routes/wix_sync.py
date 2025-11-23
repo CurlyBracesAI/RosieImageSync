@@ -47,8 +47,26 @@ def _get_pipedrive_field_map():
                         option_map[opt_id] = opt_label
                 if option_map:
                     field_options[key] = option_map
+        
+        # Fetch and cache stage names
+        stage_names = {}
+        try:
+            stages_response = requests.get(
+                f"{PIPEDRIVE_BASE}/stages",
+                params={"api_token": PIPEDRIVE_API_TOKEN, "limit": 500}
+            )
+            stages_response.raise_for_status()
+            stages = stages_response.json().get("data", [])
+            for stage in stages:
+                stage_id = stage.get("id")
+                stage_name = stage.get("name")
+                if stage_id and stage_name:
+                    stage_names[stage_id] = stage_name
+        except Exception as e:
+            print(f"Warning: Could not fetch stage names: {e}")
+        
         # Return both the field map and options for use in conversion
-        return {"field_map": field_map, "field_options": field_options}
+        return {"field_map": field_map, "field_options": field_options, "stage_names": stage_names}
     except Exception as e:
         print(f"Error fetching Pipedrive field map: {e}")
         return None
@@ -82,7 +100,7 @@ def _fetch_pipedrive_deals_filtered(filter_id, limit=500):
         return []
 
 
-def _build_wix_payload(deal, field_map, field_options=None):
+def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
     """
     Convert a single Pipedrive deal into a Wix collection item dict.
     Pulls values using field_map to translate from display names to internal keys.
@@ -92,6 +110,8 @@ def _build_wix_payload(deal, field_map, field_options=None):
     """
     if field_options is None:
         field_options = {}
+    if stage_names is None:
+        stage_names = {}
 
     def get_field(display_name):
         """Get field value from deal using display name"""
@@ -139,7 +159,7 @@ def _build_wix_payload(deal, field_map, field_options=None):
         "dealZipCode": get_field("Zip Code"),
         "dealMap": get_field("Map"),
         "dealSlugAddress": get_field("Slug Address"),
-        "dealStage": deal.get("stage_id"),  # Standard field
+        "dealStage": stage_names.get(deal.get("stage_id"), deal.get("stage_id")),  # Convert stage ID to name
         "dealWebDescriptionCopy": get_field("Web Description Copy"),
         "dealOwnerWellspringWeblink": get_field("Partner Wellspring Weblink"),
         "dealFtPt": get_field("FT | PT Availability/ Requirement"),
@@ -187,7 +207,7 @@ def _build_wix_payload(deal, field_map, field_options=None):
         "unifiedNeighborhoodLink": pipedrive["unifiedNeighborhoodLink"],
         "neighborhoodLinkLocal": pipedrive["neighborhoodLinkLocal"],
     }
-
+    
     # Inject pictures (1–10) - only if valid
     for i in range(1, 11):
         if pipedrive[f"dealPicture{i}"]:
@@ -240,13 +260,15 @@ def _delete_from_wix(collection_id, deal_ids):
         return deal_ids
 
 
-def _sync_to_wix(collection_id, pipedrive_deals, field_map, field_options=None):
+def _sync_to_wix(collection_id, pipedrive_deals, field_map, field_options=None, stage_names=None):
     """
     Fresh sync to Wix: delete existing records then insert new ones
     This ensures true "replace all" behavior each time
     """
     if field_options is None:
         field_options = {}
+    if stage_names is None:
+        stage_names = {}
     
     if not collection_id or not WIX_API_KEY or not WIX_SITE_ID or not pipedrive_deals:
         return {"error": "Missing collection_id, credentials, or deals"}
@@ -264,8 +286,8 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map, field_options=None):
         data_items = []
         
         for deal in pipedrive_deals:
-            # Build Wix item data with field option mappings
-            item_data = _build_wix_payload(deal, field_map, field_options)
+            # Build Wix item data with field option mappings and stage names
+            item_data = _build_wix_payload(deal, field_map, field_options, stage_names)
             # Wrap in Wix data structure
             data_items.append({
                 "_id": item_data.pop("_id"),  # Extract _id (Pipedrive deal ID)
@@ -328,13 +350,14 @@ def sync_wix():
     if not all([WIX_API_KEY, WIX_SITE_ID, PIPEDRIVE_API_TOKEN]):
         return jsonify({"error": "Missing credentials"}), 500
     
-    # Get field mapping and options
+    # Get field mapping, options, and stage names
     field_data = _get_pipedrive_field_map()
     if not field_data:
         return jsonify({"error": "Could not fetch Pipedrive field map"}), 500
     
     field_map = field_data.get("field_map", {})
     field_options = field_data.get("field_options", {})
+    stage_names = field_data.get("stage_names", {})
     
     # Fetch Pipedrive deals using filter (includes ALL custom fields)
     pipedrive_deals = _fetch_pipedrive_deals_filtered(filter_id)
@@ -344,8 +367,8 @@ def sync_wix():
     
     print(f"✓ Fetched {len(pipedrive_deals)} deals")
     
-    # Sync to Wix with collection ID, field map, and field options
-    wix_response = _sync_to_wix(WIX_COLLECTION_ID, pipedrive_deals, field_map, field_options)
+    # Sync to Wix with collection ID, field map, field options, and stage names
+    wix_response = _sync_to_wix(WIX_COLLECTION_ID, pipedrive_deals, field_map, field_options, stage_names)
     
     return jsonify({
         "status": "success",
