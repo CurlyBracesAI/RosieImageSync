@@ -187,6 +187,8 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
     # Use Pipedrive deal ID as Wix _id for fresh replace each time
     wix_item = {
         "_id": str(deal.get("id")),  # Use Pipedrive deal ID as the Wix record ID
+        "dealId": deal.get("id"),  # Pipedrive deal ID
+        "dealOrder": deal.get("stage_order_nr"),  # Order within pipeline stage
         "title": pipedrive["title"],
 
         "dealNeighborhood": pipedrive["dealNeighborhood"],
