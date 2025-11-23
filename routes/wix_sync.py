@@ -187,7 +187,7 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
     # Use Pipedrive deal ID as Wix _id for fresh replace each time
     wix_item = {
         "_id": str(deal.get("id")),  # Use Pipedrive deal ID as the Wix record ID
-        "dealId": deal.get("id"),  # Pipedrive deal ID
+        "dealId": str(deal.get("id")),  # Pipedrive deal ID as string for Text field
         "dealOrder": deal.get("stage_order_nr"),  # Order within pipeline stage
         "title": pipedrive["title"],
 
@@ -196,7 +196,7 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
         "neighborhoodSecondary": pipedrive["neighborhoodSecondary"],
 
         "dealState": pipedrive["dealState"],
-        "dealZipCode": pipedrive["dealZipCode"],
+        "dealZipCode": str(pipedrive["dealZipCode"]) if pipedrive["dealZipCode"] else None,
         "dealMap": pipedrive["dealMap"],
         "dealSlugAddress": pipedrive["dealSlugAddress"],
         "dealStage": pipedrive["dealStage"],
@@ -207,7 +207,7 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
         "dealProfessionUse2": pipedrive["dealProfessionUse2"],
 
         "unifiedNeighborhoodLink": pipedrive["unifiedNeighborhoodLink"],
-        "neighborhoodLinkLocal": pipedrive["neighborhoodLinkLocal"],
+        "neighborhoodLink": pipedrive["neighborhoodLinkLocal"],
     }
     
     # Inject pictures (1–10) - only if valid

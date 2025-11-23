@@ -130,12 +130,14 @@ After Upper East Side completes, sync all 5 neighborhoods to Wix website via Wix
   - All fields now populate with correct display names instead of numeric IDs
   - Ready for bulk syncing of all remaining neighborhoods (Brooklyn|Queens, Midtown East, West Village, Upper East Side)
 
-- **2025-11-23**: dealId and dealOrder Population Fix - COMPLETE ✅
+- **2025-11-23**: dealId, dealOrder & Field Type Fixes - COMPLETE ✅
   - Fixed missing `dealId` and `dealOrder` fields in Wix sync
-  - **dealId**: Now correctly populated with Pipedrive deal ID
+  - **dealId**: Now correctly populated as string (was integer) - fixes Text field type warning
+  - **dealZipCode**: Now sent as string (was mixed type) - fixes Text field type warning
   - **dealOrder**: Mapped to `stage_order_nr` (order within pipeline stage)
-  - All 23 Upper West Side deals verified with both fields populating correctly
-  - Sample values: dealId=2560, dealOrder=3 | dealId=2566, dealOrder=3 | dealId=2749, dealOrder=3
+  - **neighborhoodLink**: Fixed field name from "neighborhoodLinkLocal" (undefined) to "neighborhoodLink" (correct Wix column)
+  - All 23 Upper West Side deals verified with all fields populating correctly
+  - Sample values: dealId="2560", dealZipCode="10024", dealOrder=3, neighborhoodLink=UUID
   - Full payload now includes: dealId, dealOrder, all field conversions, neighborhood links, pictures 1-10 with alt text/tooltips
   - **Wix sync now complete and production-ready** 🚀
 
