@@ -47,7 +47,6 @@ def _get_pipedrive_field_map():
                         option_map[opt_id] = opt_label
                 if option_map:
                     field_options[key] = option_map
-        
         # Return both the field map and options for use in conversion
         return {"field_map": field_map, "field_options": field_options}
     except Exception as e:
@@ -107,14 +106,22 @@ def _build_wix_payload(deal, field_map, field_options=None):
                 if isinstance(value, list):
                     converted = []
                     for v in value:
+                        # Try both the value as-is and as an integer
                         if v in field_options[internal_key]:
                             converted.append(field_options[internal_key][v])
+                        elif isinstance(v, str) and int(v) in field_options[internal_key]:
+                            converted.append(field_options[internal_key][int(v)])
                         else:
                             converted.append(v)
                     return ", ".join(str(x) for x in converted) if converted else None
                 else:
+                    # Try both the value as-is and as an integer
                     if value in field_options[internal_key]:
-                        return field_options[internal_key][value]
+                        converted = field_options[internal_key][value]
+                        return converted
+                    elif isinstance(value, str) and int(value) in field_options[internal_key]:
+                        converted = field_options[internal_key][int(value)]
+                        return converted
             return value
         return None
 
