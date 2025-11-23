@@ -90,9 +90,9 @@ def _build_wix_payload(deal, field_map):
         "title": deal.get("title"),  # Standard field
 
         # Neighborhood fields
-        "dealNeighborhoodPrimary": get_field("Neighborhood (primary)"),
+        "dealNeighborhood": get_field("Neighborhood (primary)"),
         "dealNeighborhoodAddressDetails": get_field("Neighborhood (address details)"),
-        "dealNeighborhoodSecondary": get_field("Neighborhood (secondary)"),
+        "neighborhoodSecondary": get_field("Neighborhood (secondary)"),
 
         # Core data
         "dealState": get_field("State"),
@@ -101,8 +101,8 @@ def _build_wix_payload(deal, field_map):
         "dealSlugAddress": get_field("Slug Address"),
         "dealStage": deal.get("stage_id"),  # Standard field
         "dealWebDescriptionCopy": get_field("Web Description Copy"),
-        "dealOwr": get_field("Partner Wellspring Weblink"),
-        "dealFTPT": get_field("FT | PT Availability/ Requirement"),
+        "dealOwnerWellspringWeblink": get_field("Partner Wellspring Weblink"),
+        "dealFtPt": get_field("FT | PT Availability"),
         "dealProfessionUse": get_field("Profession | Use"),
         "dealProfessionUse2": get_field("Profession | Use2"),
 
@@ -129,9 +129,9 @@ def _build_wix_payload(deal, field_map):
         "_id": str(deal.get("id")),  # Use Pipedrive deal ID as the Wix record ID
         "title": pipedrive["title"],
 
-        "dealNeighborhoodPrimary": pipedrive["dealNeighborhoodPrimary"],
+        "dealNeighborhood": pipedrive["dealNeighborhood"],
         "dealNeighborhoodAddressDetails": pipedrive["dealNeighborhoodAddressDetails"],
-        "dealNeighborhoodSecondary": pipedrive["dealNeighborhoodSecondary"],
+        "neighborhoodSecondary": pipedrive["neighborhoodSecondary"],
 
         "dealState": pipedrive["dealState"],
         "dealZipCode": pipedrive["dealZipCode"],
@@ -139,8 +139,8 @@ def _build_wix_payload(deal, field_map):
         "dealSlugAddress": pipedrive["dealSlugAddress"],
         "dealStage": pipedrive["dealStage"],
         "dealWebDescriptionCopy": pipedrive["dealWebDescriptionCopy"],
-        "dealOwr": pipedrive["dealOwr"],
-        "dealFTPT": pipedrive["dealFTPT"],
+        "dealOwnerWellspringWeblink": pipedrive["dealOwnerWellspringWeblink"],
+        "dealFtPt": pipedrive["dealFtPt"],
         "dealProfessionUse": pipedrive["dealProfessionUse"],
         "dealProfessionUse2": pipedrive["dealProfessionUse2"],
 

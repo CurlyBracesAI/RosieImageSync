@@ -112,16 +112,21 @@ After Upper East Side completes, sync all 5 neighborhoods to Wix website via Wix
   - Each item received unique Wix ID and INSERT action confirmation
   - Ready to sync remaining neighborhoods: Brooklyn|Queens, Midtown East, West Village, Upper East Side
 
-- **2025-11-22**: Fresh Replace Wix Sync Implementation - COMPLETE ✅
+- **2025-11-22**: Fresh Replace Wix Sync Implementation & Column Mapping Corrections - COMPLETE ✅
   - Implemented true "fresh replace" sync: delete existing records, then insert fresh data
   - Added `_delete_from_wix()` function using Wix bulk remove endpoint
   - Sync flow: Extract Pipedrive deal IDs → Delete from Wix → Insert fresh with field mapping
   - Uses Pipedrive deal ID as Wix _id for consistent record linking
+  - **Corrected Wix column mappings**:
+    - `dealNeighborhood` (Neighborhood primary)
+    - `neighborhoodSecondary` (Neighborhood secondary)
+    - `dealOwnerWellspringWeblink` (Partner Wellspring Weblink)
+    - `dealFtPt` (FT | PT Availability)
   - Fixed field mapping: Now properly translates Pipedrive custom field hashes to display names
   - **Skips placeholder images**: Filters out broken S3 URLs before sending to Wix
   - Upper West Side test: 15/15 deals synced successfully (100% success, 0 failures)
   - Each sync replaces all data fresh - no duplicate records or stale data
-  - Updated `routes/wix_sync.py` with `_get_pipedrive_field_map()`, field translation logic
+  - Updated `routes/wix_sync.py` with corrected field mapping and `_get_pipedrive_field_map()` logic
   - Ready for bulk syncing of all remaining neighborhoods to Wix with consistent fresh replace behavior
 
 - **2025-11-21**: Upper East Side Make.com AI Processing - IN PROGRESS 🔄
