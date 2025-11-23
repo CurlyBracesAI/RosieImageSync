@@ -196,7 +196,6 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
         "neighborhoodSecondary": pipedrive["neighborhoodSecondary"],
 
         "dealState": pipedrive["dealState"],
-        "dealZipCode": str(pipedrive["dealZipCode"]) if pipedrive["dealZipCode"] else None,
         "dealMap": pipedrive["dealMap"],
         "dealSlugAddress": pipedrive["dealSlugAddress"],
         "dealStage": pipedrive["dealStage"],
@@ -209,6 +208,10 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
         "unifiedNeighborhoodLink": pipedrive["unifiedNeighborhoodLink"],
         "neighborhoodLink": pipedrive["neighborhoodLinkLocal"],
     }
+    
+    # Only include dealZipCode if it has a value (avoid type warning with None)
+    if pipedrive["dealZipCode"]:
+        wix_item["dealZipCode"] = str(pipedrive["dealZipCode"])
     
     # Inject pictures (1–10) - only if valid
     for i in range(1, 11):
