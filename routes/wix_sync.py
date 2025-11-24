@@ -345,50 +345,16 @@ def _sync_to_wix(collection_id, pipedrive_deals, field_map, field_options=None, 
 
 
 def _fetch_pipedrive_deals_by_neighborhood(neighborhood_name, neighborhood_id=None):
-    """Fetch deals by neighborhood name or ID (handles set fields with multiple values)"""
+    """Fetch deals from master neighborhood filter (filter_id 210) - PRIMARY neighborhoods only"""
     if not PIPEDRIVE_API_TOKEN:
         return []
     
     try:
-        # Get field info for neighborhoods
-        fields_response = requests.get(
-            f"{PIPEDRIVE_BASE}/dealFields",
-            params={"api_token": PIPEDRIVE_API_TOKEN}
-        ).json()
-        
-        neighborhood_key = None
-        neighborhood_options = {}
-        for field in fields_response.get("data", []):
-            if field.get("name") == "Neighborhood (primary)":
-                neighborhood_key = field.get("key")
-                # Build ID to label mapping
-                for opt in field.get("options", []):
-                    neighborhood_options[opt.get("id")] = opt.get("label")
-                break
-        
-        if not neighborhood_key:
-            print(f"Warning: Could not find Neighborhood field key")
-            return []
-        
-        # Determine which ID(s) to match
-        target_id = neighborhood_id
-        if not target_id and neighborhood_name:
-            # Try to find the ID from the neighborhood name
-            for opt_id, opt_label in neighborhood_options.items():
-                if opt_label == neighborhood_name or neighborhood_name in opt_label:
-                    target_id = opt_id
-                    break
-        
-        if not target_id:
-            print(f"Could not find neighborhood ID for: {neighborhood_name}")
-            return []
-        
-        print(f"✓ Syncing neighborhood ID {target_id}")
-        
-        # Fetch ALL deals (not filtered) to handle the full database
+        # Use filter 210 to get PRIMARY neighborhoods only (this is your master filter)
         url = f"{PIPEDRIVE_BASE}/deals"
         params = {
             "api_token": PIPEDRIVE_API_TOKEN,
+            "filter_id": 210,  # Master neighborhood filter for primary neighborhoods
             "limit": 500
         }
         
@@ -406,23 +372,55 @@ def _fetch_pipedrive_deals_by_neighborhood(neighborhood_name, neighborhood_id=No
                 break
             params["start"] = pagination["next_start"]
         
-        # Filter deals - neighborhood field is a "set" so may contain multiple values
+        print(f"✓ Fetched {len(all_deals)} total deals from master filter 210 (primary neighborhoods)")
+        
+        # If no specific neighborhood_id provided, return all (for bulk sync)
+        if not neighborhood_id and not neighborhood_name:
+            return all_deals
+        
+        # Get field info to filter by specific neighborhood
+        fields_response = requests.get(
+            f"{PIPEDRIVE_BASE}/dealFields",
+            params={"api_token": PIPEDRIVE_API_TOKEN}
+        ).json()
+        
+        neighborhood_key = None
+        neighborhood_options = {}
+        for field in fields_response.get("data", []):
+            if field.get("name") == "Neighborhood (primary)":
+                neighborhood_key = field.get("key")
+                # Build ID to label mapping
+                for opt in field.get("options", []):
+                    neighborhood_options[opt.get("id")] = opt.get("label")
+                break
+        
+        if not neighborhood_key:
+            print(f"Warning: Could not find Neighborhood field key")
+            return all_deals
+        
+        # Determine which ID(s) to match
+        target_id = neighborhood_id
+        if not target_id and neighborhood_name:
+            # Try to find the ID from the neighborhood name
+            for opt_id, opt_label in neighborhood_options.items():
+                if opt_label == neighborhood_name or neighborhood_name in opt_label:
+                    target_id = opt_id
+                    break
+        
+        if not target_id:
+            # No specific neighborhood filter, return all from master filter
+            return all_deals
+        
+        # Filter deals by the specific neighborhood ID
         filtered_deals = []
         for deal in all_deals:
             hood_data = deal.get(neighborhood_key)
             if hood_data:
-                # Handle set fields - can be string ID or list of IDs
-                if isinstance(hood_data, list):
-                    if target_id in hood_data or str(target_id) in [str(x) for x in hood_data]:
-                        filtered_deals.append(deal)
-                elif isinstance(hood_data, str):
-                    if str(target_id) == hood_data:
-                        filtered_deals.append(deal)
-                elif isinstance(hood_data, int):
-                    if target_id == hood_data:
-                        filtered_deals.append(deal)
+                # Check if this is the exact neighborhood (PRIMARY)
+                if hood_data == target_id or hood_data == str(target_id):
+                    filtered_deals.append(deal)
         
-        print(f"✓ Fetched {len(filtered_deals)} deals from neighborhood: {neighborhood_name}")
+        print(f"✓ Filtered to {len(filtered_deals)} deals from neighborhood ID {target_id}")
         return filtered_deals
         
     except Exception as e:
