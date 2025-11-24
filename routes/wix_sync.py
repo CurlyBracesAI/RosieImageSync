@@ -256,43 +256,10 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
 
 
 def _delete_from_wix(collection_id, deal_ids):
-    """Delete existing items from Wix before fresh insert"""
-    if not collection_id or not WIX_API_KEY or not WIX_SITE_ID or not deal_ids:
-        return []
-    
-    try:
-        headers = {
-            "Authorization": f"Bearer {WIX_API_KEY}",
-            "wix-site-id": WIX_SITE_ID,
-            "Content-Type": "application/json"
-        }
-        
-        delete_items = [{"_id": str(deal_id)} for deal_id in deal_ids]
-        payload = {
-            "dataCollectionId": collection_id,
-            "dataItems": delete_items
-        }
-        
-        bulk_delete_endpoint = f"{WIX_API_BASE}/bulk/items/remove"
-        print(f"Deleting {len(delete_items)} items from Wix...")
-        
-        response = requests.post(
-            bulk_delete_endpoint,
-            headers=headers,
-            json=payload
-        )
-        
-        print(f"Delete response: {response.status_code}")
-        
-        # Ignore 404 errors (items don't exist yet)
-        if response.status_code in [200, 404]:
-            return deal_ids
-        else:
-            response.raise_for_status()
-            return deal_ids
-    except Exception as e:
-        print(f"Note: Delete operation completed (may have no items to delete): {e}")
-        return deal_ids
+    """Delete existing items from Wix - skip because bulk save will update automatically"""
+    # The bulk save endpoint automatically updates existing records, so no delete needed
+    print(f"Note: Skipping delete - bulk save will update existing {len(deal_ids)} items automatically")
+    return deal_ids
 
 
 def _sync_to_wix(collection_id, pipedrive_deals, field_map, field_options=None, stage_names=None):
