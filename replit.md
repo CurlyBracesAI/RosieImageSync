@@ -181,5 +181,7 @@ After Upper East Side completes, sync all 5 neighborhoods to Wix website via Wix
   - All picture URLs, alt text, and tooltips synced to Pipedrive
   - Descriptions generated via AWS Rekognition + OpenAI pipeline
   - Image naming: 1.jpg through 8.jpg from Upper_East_Side_AWS_S3 folder
-  - Synced all 15 UES deals to Wix (100% success, 0 failures)
+  - Synced all 15 UES deals fresh to Wix (100% success, 0 failures)
   - Deal 4794 now live on Wix with all 8 images and descriptions ✓
+  - User manually deleted all 30 old items, then reloaded fresh 15 UES deals
+  - Wix collection now clean with current data only
