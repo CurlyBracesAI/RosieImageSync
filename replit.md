@@ -165,3 +165,12 @@ After Upper East Side completes, sync all 5 neighborhoods to Wix website via Wix
   - Zero type warnings, zero failures
   - Full neighborhood-based sync endpoint implemented: `/sync-neighborhood?neighborhood_id={id}`
   - **Project now production-ready** 🚀
+
+- **2025-11-24**: Image Processing with Rekognition - Picture URL Upload Fixed ✅
+  - Fixed `/rosie-images` endpoint to upload picture URLs along with descriptions
+  - Enhanced `_get_pipedrive_field_keys()` to fetch Picture 1-10 field keys
+  - Updated `_update_pipedrive_deal()` to upload: Picture URL + Alt Text + Tooltip Text
+  - Successfully processed 6 images for deal 2749 (UWS: Jonathan Legum)
+  - Descriptions generated using AWS Rekognition + OpenAI (gpt-4o-mini)
+  - All three data types now syncing to Pipedrive: URLs, alt text, tooltips
+  - **Image intelligence pipeline fully operational** ✅

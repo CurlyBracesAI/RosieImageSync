@@ -39,7 +39,7 @@ def _get_deal_address(deal_id):
         return None
 
 def _get_pipedrive_field_keys():
-    """Get Pipedrive custom field keys for Alt Text and Tooltip fields"""
+    """Get Pipedrive custom field keys for Picture URLs, Alt Text, and Tooltip fields"""
     token = _get_pipedrive_api_token()
     if not token:
         return None
@@ -52,14 +52,25 @@ def _get_pipedrive_field_keys():
         response.raise_for_status()
         fields = response.json().get("data", [])
         
-        # Build mapping: {1: {alt: "key123", tooltip: "key456"}, 2: {...}, ...}
+        # Build mapping: {1: {picture: "key123", alt: "key456", tooltip: "key789"}, 2: {...}, ...}
         field_map = {}
         for field in fields:
             name = field.get("name", "")
             key = field.get("key", "")
             
+            # Match "Picture 1" through "Picture 10"
+            if name.startswith("Picture "):
+                pic_num = name.split("Picture")[-1].strip()
+                try:
+                    num = int(pic_num)
+                    if num not in field_map:
+                        field_map[num] = {}
+                    field_map[num]["picture"] = key
+                except ValueError:
+                    pass
+            
             # Match "Deal - Alt Text Pic 1" through "Deal - Alt Text Pic 10"
-            if "Alt Text Pic" in name:
+            elif "Alt Text Pic" in name:
                 pic_num = name.split("Pic")[-1].strip()
                 try:
                     num = int(pic_num)
@@ -136,11 +147,11 @@ def _check_pipedrive_slot_populated(deal_id, picture_number):
         return None
 
 def _update_pipedrive_deal(deal_id, images, picture_number=None):
-    """Update Pipedrive deal with alt text and tooltip data
+    """Update Pipedrive deal with picture URLs, alt text, and tooltip data
     
     Args:
         deal_id: Pipedrive deal ID
-        images: List of image objects with alt_text and tooltip_text
+        images: List of image objects with url, alt_text, and tooltip_text
         picture_number: Optional specific picture slot (1-10) to update. If None, updates slots 1-N based on array position
     """
     token = _get_pipedrive_api_token()
@@ -161,8 +172,13 @@ def _update_pipedrive_deal(deal_id, images, picture_number=None):
         if 1 <= picture_number <= 10 and len(images) > 0:
             image = images[0]  # Use first image in array
             if picture_number in field_map:
+                # Update picture URL
+                if "picture" in field_map[picture_number] and image.get("url"):
+                    update_data[field_map[picture_number]["picture"]] = image["url"]
+                # Update alt text
                 if "alt" in field_map[picture_number] and image.get("alt_text"):
                     update_data[field_map[picture_number]["alt"]] = image["alt_text"]
+                # Update tooltip text
                 if "tooltip" in field_map[picture_number] and image.get("tooltip_text"):
                     update_data[field_map[picture_number]["tooltip"]] = image["tooltip_text"]
     else:
@@ -172,8 +188,13 @@ def _update_pipedrive_deal(deal_id, images, picture_number=None):
                 break
             
             if i in field_map:
+                # Update picture URL
+                if "picture" in field_map[i] and image.get("url"):
+                    update_data[field_map[i]["picture"]] = image["url"]
+                # Update alt text
                 if "alt" in field_map[i] and image.get("alt_text"):
                     update_data[field_map[i]["alt"]] = image["alt_text"]
+                # Update tooltip text
                 if "tooltip" in field_map[i] and image.get("tooltip_text"):
                     update_data[field_map[i]["tooltip"]] = image["tooltip_text"]
     
