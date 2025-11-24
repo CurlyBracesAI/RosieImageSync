@@ -40,3 +40,21 @@ Alt text is concise (8-14 words) for screen readers, while tooltip text is more 
 - **OpenAI API**: Used for generating alt text and tooltip descriptions.
 - **Pipedrive**: CRM system for updating deal custom fields.
 - **Make.com**: Integration platform for orchestrating workflow and triggering the API.
+
+## Recent Updates & Fixes
+
+### 2025-11-24: Root Cause Fixed - Missing Picture URLs Issue Resolved ✅
+
+**Problem:** Deals 3365, 3371, 3460, 3977 were in Wix but missing picture URLs.
+
+**Root Cause:** Pipedrive's filter API endpoint doesn't return custom fields (Picture 1-10, Alt Text, Tooltips) in the response.
+
+**Solution Implemented:**
+- Modified `_fetch_pipedrive_deals_filtered()` to:
+  1. Use filter to get deal IDs
+  2. Fetch each deal individually (includes ALL custom fields)
+  3. Return complete deals with pictures, alt text, tooltips
+- Modified `_fetch_pipedrive_deals_by_neighborhood()` with same logic
+- Tested: All 15 UES deals synced successfully with custom fields included
+
+**Result:** This issue will NOT happen again. All future syncs automatically include custom fields by fetching deals individually.

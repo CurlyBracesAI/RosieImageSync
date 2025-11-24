@@ -73,7 +73,7 @@ def _get_pipedrive_field_map():
 
 
 def _fetch_pipedrive_deals_filtered(filter_id, limit=500):
-    """Fetch deals using filter endpoint - includes custom fields"""
+    """Fetch deals using filter endpoint - fetches individually to include custom fields"""
     if not PIPEDRIVE_API_TOKEN:
         return []
     
@@ -87,14 +87,34 @@ def _fetch_pipedrive_deals_filtered(filter_id, limit=500):
         }
         headers = {"Accept": "application/json"}
         
+        # First, get the list of deal IDs from the filter
         response = requests.get(url, params=params, headers=headers)
         response.raise_for_status()
         
-        deals = response.json().get("data") or []
-        print(f"✓ Fetched {len(deals)} deals from Pipedrive using filter {filter_id}")
+        filter_deals = response.json().get("data") or []
+        deal_ids = [d.get("id") for d in filter_deals if d.get("id")]
+        print(f"✓ Filter {filter_id} contains {len(deal_ids)} deals")
         
-        # Deals fetched with filter_id automatically include custom fields
-        return deals
+        # Now fetch each deal individually to ensure ALL custom fields are included
+        # (filter_id endpoint doesn't return custom fields, but individual deal endpoint does)
+        deals_with_custom_fields = []
+        for deal_id in deal_ids:
+            try:
+                deal_response = requests.get(
+                    f"{PIPEDRIVE_BASE}/deals/{deal_id}",
+                    params={"api_token": PIPEDRIVE_API_TOKEN},
+                    headers=headers
+                )
+                deal_response.raise_for_status()
+                deal = deal_response.json().get("data")
+                if deal:
+                    deals_with_custom_fields.append(deal)
+            except Exception as e:
+                print(f"  Warning: Could not fetch deal {deal_id}: {e}")
+                continue
+        
+        print(f"✓ Fetched {len(deals_with_custom_fields)} deals with ALL custom fields")
+        return deals_with_custom_fields
     except Exception as e:
         print(f"Error fetching Pipedrive deals with filter: {e}")
         return []
@@ -358,13 +378,13 @@ def _fetch_pipedrive_deals_by_neighborhood(neighborhood_name, neighborhood_id=No
             "limit": 500
         }
         
-        all_deals = []
+        all_deal_ids = []
         while True:
             response = requests.get(url, params=params).json()
             deals = response.get("data") or []
             if not deals:
                 break
-            all_deals.extend(deals)
+            all_deal_ids.extend([d.get("id") for d in deals if d.get("id")])
             
             # Pagination
             pagination = response.get("additional_data", {}).get("pagination", {})
@@ -372,11 +392,31 @@ def _fetch_pipedrive_deals_by_neighborhood(neighborhood_name, neighborhood_id=No
                 break
             params["start"] = pagination["next_start"]
         
-        print(f"✓ Fetched {len(all_deals)} total deals from master filter 210 (primary neighborhoods)")
+        print(f"✓ Filter 210 contains {len(all_deal_ids)} deals")
+        
+        # Fetch each deal individually to ensure ALL custom fields are included
+        headers = {"Accept": "application/json"}
+        all_deals_with_fields = []
+        for deal_id in all_deal_ids:
+            try:
+                deal_response = requests.get(
+                    f"{PIPEDRIVE_BASE}/deals/{deal_id}",
+                    params={"api_token": PIPEDRIVE_API_TOKEN},
+                    headers=headers
+                )
+                deal_response.raise_for_status()
+                deal = deal_response.json().get("data")
+                if deal:
+                    all_deals_with_fields.append(deal)
+            except Exception as e:
+                print(f"  Warning: Could not fetch deal {deal_id}: {e}")
+                continue
+        
+        print(f"✓ Fetched {len(all_deals_with_fields)} deals with ALL custom fields")
         
         # If no specific neighborhood_id provided, return all (for bulk sync)
         if not neighborhood_id and not neighborhood_name:
-            return all_deals
+            return all_deals_with_fields
         
         # Get field info to filter by specific neighborhood
         fields_response = requests.get(
@@ -396,7 +436,7 @@ def _fetch_pipedrive_deals_by_neighborhood(neighborhood_name, neighborhood_id=No
         
         if not neighborhood_key:
             print(f"Warning: Could not find Neighborhood field key")
-            return all_deals
+            return all_deals_with_fields
         
         # Determine which ID(s) to match
         target_id = neighborhood_id
@@ -409,11 +449,11 @@ def _fetch_pipedrive_deals_by_neighborhood(neighborhood_name, neighborhood_id=No
         
         if not target_id:
             # No specific neighborhood filter, return all from master filter
-            return all_deals
+            return all_deals_with_fields
         
         # Filter deals by the specific neighborhood ID
         filtered_deals = []
-        for deal in all_deals:
+        for deal in all_deals_with_fields:
             hood_data = deal.get(neighborhood_key)
             if hood_data:
                 # Check if this is the exact neighborhood (PRIMARY)
