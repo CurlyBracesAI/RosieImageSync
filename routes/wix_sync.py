@@ -201,14 +201,10 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
         "neighborhoodLinkLocal": get_field("Neighborhood Link Local"),
     }
 
-    # IMAGES (1–10) - skip placeholders and empty URLs
+    # IMAGES (1–10) - include all pictures (placeholder and real)
     for i in range(1, 11):
         pic_url = get_field(f"Picture {i}")
-        # Skip if empty or placeholder
-        if pic_url and "placeholder" not in pic_url.lower():
-            pipedrive[f"dealPicture{i}"] = pic_url
-        else:
-            pipedrive[f"dealPicture{i}"] = None
+        pipedrive[f"dealPicture{i}"] = pic_url
         
         pipedrive[f"dealAltTextPic{i}"]    = get_field(f"Alt Text Pic {i}")
         pipedrive[f"dealTooltipPic{i}"]    = get_field(f"Tooltip Pic {i}")
