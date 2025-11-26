@@ -531,3 +531,94 @@ def sync_neighborhood():
         "neighborhood": neighborhood or f"ID {neighborhood_id}",
         "wix_response": wix_response
     }), 200
+
+
+@bp_wix_sync.route('/sync-deal/<int:deal_id>', methods=['POST', 'GET'])
+def sync_deal(deal_id):
+    """
+    Sync a single Pipedrive deal to Wix collection (UPDATE only, no other deals affected).
+    Perfect for updating individual listings with new images or data changes.
+    
+    Usage:
+    - GET /sync-deal/3365
+    - POST /sync-deal/3365
+    """
+    print(f"✓ Syncing single deal: {deal_id}")
+    
+    # Validate credentials
+    if not all([WIX_API_KEY, WIX_SITE_ID, PIPEDRIVE_API_TOKEN]):
+        return jsonify({"error": "Missing credentials"}), 500
+    
+    # Get field mapping, options, and stage names
+    field_data = _get_pipedrive_field_map()
+    if not field_data:
+        return jsonify({"error": "Could not fetch Pipedrive field map"}), 500
+    
+    field_map = field_data.get("field_map", {})
+    field_options = field_data.get("field_options", {})
+    stage_names = field_data.get("stage_names", {})
+    
+    # Fetch the specific deal from Pipedrive
+    try:
+        response = requests.get(
+            f"{PIPEDRIVE_BASE}/deals/{deal_id}",
+            params={"api_token": PIPEDRIVE_API_TOKEN}
+        )
+        response.raise_for_status()
+        deal = response.json().get("data")
+        
+        if not deal:
+            return jsonify({"error": f"Deal {deal_id} not found in Pipedrive"}), 404
+        
+        print(f"✓ Fetched deal {deal_id}")
+        
+    except Exception as e:
+        print(f"✗ Error fetching deal {deal_id}: {e}")
+        return jsonify({"error": f"Could not fetch deal {deal_id}: {str(e)}"}), 500
+    
+    # Build Wix payload for this single deal
+    item_data = _build_wix_payload(deal, field_map, field_options, stage_names)
+    
+    # Prepare for Wix API
+    data_items = [{
+        "_id": item_data.pop("_id"),
+        "data": item_data
+    }]
+    
+    headers = {
+        "Authorization": f"Bearer {WIX_API_KEY}",
+        "wix-site-id": WIX_SITE_ID,
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "dataCollectionId": WIX_COLLECTION_ID,
+        "dataItems": data_items
+    }
+    
+    print(f"Updating deal {deal_id} in Wix...")
+    
+    try:
+        response = requests.post(
+            f"{WIX_API_BASE}/bulk/items/save",
+            headers=headers,
+            json=payload
+        )
+        response.raise_for_status()
+        result = response.json()
+        
+        metadata = result.get('bulkActionMetadata', {})
+        print(f"✓ Wix update completed: {metadata}")
+        
+        return jsonify({
+            "status": "success",
+            "deal_id": deal_id,
+            "wix_response": {
+                "totalSuccesses": metadata.get("totalSuccesses", 0),
+                "totalFailures": metadata.get("totalFailures", 0)
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"✗ Error updating Wix: {e}")
+        return jsonify({"error": f"Could not sync to Wix: {str(e)}"}), 500
