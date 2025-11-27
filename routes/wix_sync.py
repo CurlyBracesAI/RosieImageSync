@@ -120,6 +120,19 @@ def _fetch_pipedrive_deals_filtered(filter_id, limit=500):
         return []
 
 
+def _convert_stage_id_to_label(stage_id, stage_names):
+    """Convert stage ID (int or string) to stage label using stage_names mapping"""
+    if stage_id is None:
+        return None
+    if stage_id in stage_names:
+        return stage_names[stage_id]
+    if isinstance(stage_id, str) and stage_id.isdigit():
+        stage_id_int = int(stage_id)
+        if stage_id_int in stage_names:
+            return stage_names[stage_id_int]
+    return stage_id
+
+
 def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
     """
     Convert a single Pipedrive deal into a Wix collection item dict.
@@ -189,10 +202,10 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
         "dealZipCode": get_field("Zip Code"),
         "dealMap": get_field("Map"),
         "dealSlugAddress": get_field("Slug Address"),
-        "dealStage": stage_names.get(deal.get("stage_id"), deal.get("stage_id")),  # Convert stage ID to name
+        "dealStage": _convert_stage_id_to_label(deal.get("stage_id"), stage_names),
         "dealWebDescriptionCopy": get_field("Web Description Copy"),
         "dealOwnerWellspringWeblink": get_field("Partner Wellspring Weblink"),
-        "dealFtPt": get_field("FT | PT Availability/ Requirement"),
+        "dealFtPt": get_field("FT | PT Availability"),
         "dealProfessionUse": get_field("Profession | Use"),
         "dealProfessionUse2": get_field("Profession | Use2"),
 
@@ -233,11 +246,8 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
 
         "unifiedNeighborhoodLink": pipedrive["unifiedNeighborhoodLink"],
         "neighborhoodLink": pipedrive["neighborhoodLinkLocal"],
+        "dealZipCode": str(pipedrive["dealZipCode"]) if pipedrive["dealZipCode"] is not None else "",
     }
-    
-    # Only include dealZipCode if it has a value (avoid type warning with None)
-    if pipedrive["dealZipCode"]:
-        wix_item["dealZipCode"] = str(pipedrive["dealZipCode"])
     
     # Inject pictures (1–10) - only if valid
     for i in range(1, 11):
