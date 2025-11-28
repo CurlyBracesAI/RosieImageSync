@@ -188,6 +188,10 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
             return value
         return None
 
+    wix_id = get_field("ID (Wix)")
+    if not wix_id:
+        wix_id = str(deal.get("id"))
+
     # PIPEDRIVE → WIX FIELD MAPPING
     pipedrive = {
         "title": deal.get("title"),  # Standard field
@@ -223,9 +227,9 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
         pipedrive[f"dealTooltipPic{i}"]    = get_field(f"Tooltip Pic {i}")
 
     # WIX ITEM DICT (THIS IS WHAT GETS SENT TO THE API)
-    # Use Pipedrive deal ID as Wix _id for fresh replace each time
+    # Use Pipedrive custom field "ID (Wix)" as Wix _id, fallback to Pipedrive deal ID
     wix_item = {
-        "_id": str(deal.get("id")),  # Use Pipedrive deal ID as the Wix record ID
+        "_id": wix_id,
         "dealId": str(deal.get("id")),  # Pipedrive deal ID as string for Text field
         "dealOrder": deal.get("stage_order_nr"),  # Order within pipeline stage
         "title": pipedrive["title"],
