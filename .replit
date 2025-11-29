@@ -47,4 +47,5 @@ externalPort = 3001
 WIX_SITE_ID = "43a33b0d-fd85-4458-8b88-21cfc9cc4fbc"
 
 [deployment]
-deploymentTarget = "cloudrun"
+deploymentTarget = "autoscale"
+run = ["python", "main.py"]
