@@ -11,11 +11,7 @@ app.register_blueprint(bp_wix_sync)
 def index():
     return {"message": "ROSIE AGENT E API"}
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import os
-    # Disable debug mode in production for better performance and security
-    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-    # Override to False for production deployments
-    if os.getenv('ENVIRONMENT') == 'production':
-        debug_mode = False
-    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
+    port = int(os.environ.get("FLASK_RUN_PORT", 8000))
+    app.run(host="0.0.0.0", port=port)

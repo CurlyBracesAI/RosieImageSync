@@ -191,6 +191,9 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
     wix_id = get_field("ID (Wix)")
     if not wix_id:
         wix_id = str(deal.get("id"))
+    # Ensure wix_id is always a non-empty string
+    if not wix_id or not isinstance(wix_id, str):
+        wix_id = str(deal.get("id") or "")
 
     # PIPEDRIVE → WIX FIELD MAPPING
     pipedrive = {
@@ -591,7 +594,13 @@ def sync_deal(deal_id):
         return jsonify({"error": f"Could not fetch deal {deal_id}: {str(e)}"}), 500
     
     # Build Wix payload for this single deal
-    item_data = _build_wix_payload(deal, field_map, field_options, stage_names)
+    try:
+        item_data = _build_wix_payload(deal, field_map, field_options, stage_names)
+    except Exception as e:
+        print(f"✗ Error building Wix payload for deal {deal_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Could not build Wix payload for deal {deal_id}: {str(e)}"}), 500
     
     # Prepare for Wix API
     data_items = [{
