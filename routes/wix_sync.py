@@ -212,7 +212,7 @@ def _build_wix_payload(deal, field_map, field_options=None, stage_names=None):
         "dealStage": _convert_stage_id_to_label(deal.get("stage_id"), stage_names),
         "dealWebDescriptionCopy": get_field("Web Description Copy"),
         "dealOwnerWellspringWeblink": get_field("Partner Wellspring Weblink"),
-        "dealFtPt": get_field("FT | PT Availability"),
+        "dealFtPt": get_field("FT | PT Availability/ Requirement"),
         "dealProfessionUse": get_field("Profession | Use"),
         "dealProfessionUse2": get_field("Profession | Use2"),
 
