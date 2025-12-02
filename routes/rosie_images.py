@@ -432,6 +432,16 @@ def rosie_images():
         filtered_count = original_count - len(image_urls)
         if filtered_count > 0:
             print(f"⚠️ Filtered out {filtered_count} non-image file(s) (e.g., .DS_Store)")
+        
+        # If no valid images remain after filtering, skip this request entirely
+        if len(image_urls) == 0:
+            print(f"⚠️ SKIPPING: No valid image files in request (all were non-image files like .DS_Store)")
+            return jsonify({
+                "status": "skipped",
+                "message": "No valid image files to process",
+                "deal_id": deal_id,
+                "filtered_count": filtered_count
+            }), 200
     
     # Convert force_refresh to boolean
     if isinstance(force_refresh, str):
