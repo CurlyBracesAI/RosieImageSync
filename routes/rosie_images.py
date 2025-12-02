@@ -424,6 +424,15 @@ def rosie_images():
     picture_number = data.get("picture_number")
     force_refresh = data.get("force_refresh", False)
     
+    # Filter out non-image files like .DS_Store
+    VALID_IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff')
+    if image_urls:
+        original_count = len(image_urls)
+        image_urls = [url for url in image_urls if url.lower().endswith(VALID_IMAGE_EXTENSIONS)]
+        filtered_count = original_count - len(image_urls)
+        if filtered_count > 0:
+            print(f"⚠️ Filtered out {filtered_count} non-image file(s) (e.g., .DS_Store)")
+    
     # Convert force_refresh to boolean
     if isinstance(force_refresh, str):
         force_refresh = force_refresh.lower() in ('true', '1', 'yes')
