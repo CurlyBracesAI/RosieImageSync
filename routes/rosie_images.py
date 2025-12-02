@@ -418,6 +418,10 @@ def rosie_images():
         print(f"ERROR: No data received")
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
     
+    # Debug: Log exactly what Make.com is sending
+    print(f"DEBUG RECEIVED: deal_id={data.get('deal_id')}, neighborhood={data.get('neighborhood')}")
+    print(f"DEBUG RECEIVED: image_urls={data.get('image_urls')}")
+    
     deal_id = data.get("deal_id")
     neighborhood = data.get("neighborhood")
     image_urls = data.get("image_urls")
