@@ -539,14 +539,8 @@ def rosie_images():
     # Update Pipedrive with alt text and tooltip data
     pipedrive_updated = _update_pipedrive_deal(deal_id, processed, picture_number)
     
-    # Only sync to Wix if explicitly requested (to avoid duplicates when processing multiple images)
-    sync_to_wix = data.get("sync_to_wix", False)
-    if isinstance(sync_to_wix, str):
-        sync_to_wix = sync_to_wix.lower() in ('true', '1', 'yes')
-    
-    wix_result = None
-    if sync_to_wix:
-        wix_result = _sync_deal_to_wix(deal_id)
+    # Note: Wix sync removed from here to avoid duplicates when processing multiple images
+    # Use /wix-sync endpoint to sync deals to Wix after all images are processed
     
     return jsonify({
         "status": "ok",
@@ -555,6 +549,5 @@ def rosie_images():
         "image_count": len(image_urls),
         "picture_number": picture_number,
         "images": processed,
-        "pipedrive_updated": pipedrive_updated,
-        "wix_synced": wix_result
+        "pipedrive_updated": pipedrive_updated
     })
