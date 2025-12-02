@@ -5,6 +5,12 @@ import os
 import requests
 from openai import OpenAI
 
+WIX_API_KEY = os.getenv("WIX_ACCESS_KEY_ID")
+WIX_SITE_ID = os.getenv("WIX_SITE_ID")
+WIX_COLLECTION_ID = "Import455"
+WIX_API_BASE = "https://www.wixapis.com/wix-data/v2"
+PIPEDRIVE_BASE = "https://api.pipedrive.com/v1"
+
 def _get_pipedrive_api_token():
     """Get Pipedrive API token from environment"""
     return os.environ.get("PIPEDRIVE_API_TOKEN")
@@ -320,6 +326,77 @@ Example BAD (promotional or repetitive):
     except Exception:
         return {"alt_text": "", "tooltip_text": ""}
 
+def _sync_deal_to_wix(deal_id):
+    """Sync a single deal from Pipedrive to Wix after image processing"""
+    from routes.wix_sync import _get_pipedrive_field_map, _build_wix_payload
+    
+    wix_api_key = os.getenv("WIX_ACCESS_KEY_ID")
+    wix_site_id = os.getenv("WIX_SITE_ID")
+    pipedrive_token = os.getenv("PIPEDRIVE_API_TOKEN")
+    
+    if not all([wix_api_key, wix_site_id, pipedrive_token]):
+        print(f"⚠️ Wix sync skipped: missing credentials")
+        return {"synced": False, "error": "Missing Wix/Pipedrive credentials"}
+    
+    try:
+        field_data = _get_pipedrive_field_map()
+        if not field_data:
+            return {"synced": False, "error": "Could not fetch field map"}
+        
+        field_map = field_data.get("field_map", {})
+        field_options = field_data.get("field_options", {})
+        stage_names = field_data.get("stage_names", {})
+        
+        response = requests.get(
+            f"{PIPEDRIVE_BASE}/deals/{deal_id}",
+            params={"api_token": pipedrive_token}
+        )
+        response.raise_for_status()
+        deal = response.json().get("data")
+        
+        if not deal:
+            return {"synced": False, "error": f"Deal {deal_id} not found"}
+        
+        item_data = _build_wix_payload(deal, field_map, field_options, stage_names)
+        
+        data_items = [{
+            "_id": item_data.pop("_id"),
+            "data": item_data
+        }]
+        
+        headers = {
+            "Authorization": f"Bearer {wix_api_key}",
+            "wix-site-id": wix_site_id,
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "dataCollectionId": WIX_COLLECTION_ID,
+            "dataItems": data_items
+        }
+        
+        print(f"Syncing deal {deal_id} to Wix...")
+        wix_response = requests.post(
+            f"{WIX_API_BASE}/bulk/items/save",
+            headers=headers,
+            json=payload
+        )
+        wix_response.raise_for_status()
+        result = wix_response.json()
+        
+        metadata = result.get('bulkActionMetadata', {})
+        print(f"✓ Wix sync completed for deal {deal_id}: {metadata}")
+        
+        return {
+            "synced": True,
+            "totalSuccesses": metadata.get("totalSuccesses", 0),
+            "totalFailures": metadata.get("totalFailures", 0)
+        }
+        
+    except Exception as e:
+        print(f"✗ Wix sync failed for deal {deal_id}: {e}")
+        return {"synced": False, "error": str(e)}
+
 bp_rosie_images = Blueprint("rosie_images", __name__)
 
 @bp_rosie_images.route("/rosie-images", methods=["POST"])
@@ -439,6 +516,9 @@ def rosie_images():
     # Update Pipedrive with alt text and tooltip data
     pipedrive_updated = _update_pipedrive_deal(deal_id, processed, picture_number)
     
+    # Sync deal to Wix automatically after processing
+    wix_result = _sync_deal_to_wix(deal_id)
+    
     return jsonify({
         "status": "ok",
         "deal_id": deal_id,
@@ -446,5 +526,6 @@ def rosie_images():
         "image_count": len(image_urls),
         "picture_number": picture_number,
         "images": processed,
-        "pipedrive_updated": pipedrive_updated
+        "pipedrive_updated": pipedrive_updated,
+        "wix_synced": wix_result
     })
