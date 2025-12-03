@@ -539,8 +539,8 @@ def rosie_images():
     # Update Pipedrive with alt text and tooltip data
     pipedrive_updated = _update_pipedrive_deal(deal_id, processed, picture_number)
     
-    # Sync deal to Wix after updating Pipedrive
-    wix_sync_result = _sync_deal_to_wix(deal_id)
+    # Note: Wix sync is NOT done here to avoid duplicates (one sync per image = many duplicates)
+    # Make.com should call /sync-deal/{deal_id} ONCE at the end after all images are processed
     
     return jsonify({
         "status": "ok",
@@ -549,7 +549,5 @@ def rosie_images():
         "image_count": len(image_urls),
         "picture_number": picture_number,
         "images": processed,
-        "pipedrive_updated": pipedrive_updated,
-        "wix_synced": wix_sync_result.get("synced", False),
-        "wix_result": wix_sync_result
+        "pipedrive_updated": pipedrive_updated
     })
