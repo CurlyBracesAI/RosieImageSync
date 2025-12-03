@@ -5,6 +5,9 @@ import os
 import requests
 from openai import OpenAI
 
+# Global counter for /rosie-images endpoint hits (for debug)
+ROSIE_IMAGES_HIT_COUNT = 0
+
 WIX_API_KEY = os.getenv("WIX_ACCESS_KEY_ID")
 WIX_SITE_ID = os.getenv("WIX_SITE_ID")
 WIX_COLLECTION_ID = "Import455"
@@ -401,6 +404,10 @@ bp_rosie_images = Blueprint("rosie_images", __name__)
 
 @bp_rosie_images.route("/rosie-images", methods=["POST"])
 def rosie_images():
+    global ROSIE_IMAGES_HIT_COUNT
+    ROSIE_IMAGES_HIT_COUNT += 1
+    print(f"[ROSIE DEBUG] /rosie-images endpoint hit count: {ROSIE_IMAGES_HIT_COUNT}")
+
     data = request.get_json(silent=True)
     
     if data is None:
@@ -417,7 +424,11 @@ def rosie_images():
     if not data:
         print(f"ERROR: No data received")
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
-    
+
+    # Detailed debug logging for incoming payload and deal_id
+    print(f"[ROSIE DEBUG] Incoming payload: {json.dumps(data, indent=2)}")
+    print(f"[ROSIE DEBUG] deal_id: {data.get('deal_id')}")
+
     # Debug: Log exactly what Make.com is sending
     print(f"DEBUG RECEIVED: deal_id={data.get('deal_id')}, neighborhood={data.get('neighborhood')}")
     print(f"DEBUG RECEIVED: image_urls={data.get('image_urls')}")
