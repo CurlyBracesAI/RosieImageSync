@@ -4,9 +4,15 @@ import json
 import os
 import requests
 from openai import OpenAI
+from collections import defaultdict
+import threading
 
 # Global counter for /rosie-images endpoint hits (for debug)
 ROSIE_IMAGES_HIT_COUNT = 0
+
+# Per-deal image processing tracker
+DEAL_IMAGE_TRACKER = defaultdict(set)
+DEAL_IMAGE_TRACKER_LOCK = threading.Lock()
 
 WIX_API_KEY = os.getenv("WIX_ACCESS_KEY_ID")
 WIX_SITE_ID = os.getenv("WIX_SITE_ID")
@@ -329,7 +335,33 @@ Example BAD (promotional or repetitive):
     except Exception:
         return {"alt_text": "", "tooltip_text": ""}
 
-def _sync_deal_to_wix(deal_id):
+def _list_s3_images_for_deal(neighborhood, deal_id):
+    """
+    List all image files in S3 for the given deal and neighborhood.
+    Returns the count of image files.
+    """
+    s3 = boto3.client("s3")
+    bucket = os.environ.get("AWS_S3_BUCKET")
+    if not bucket:
+        print("[ROSIE DEBUG] No AWS_S3_BUCKET set in environment")
+        return 0
+    prefix = f"Neighborhood Listing Images/{neighborhood}/{deal_id}/"
+    try:
+        paginator = s3.get_paginator("list_objects_v2")
+        page_iterator = paginator.paginate(Bucket=bucket, Prefix=prefix)
+        count = 0
+        for page in page_iterator:
+            for obj in page.get("Contents", []):
+                key = obj["Key"]
+                if key.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff')):
+                    count += 1
+        print(f"[ROSIE DEBUG] S3 image count for {prefix}: {count}")
+        return count
+    except Exception as e:
+        print(f"[ROSIE DEBUG] Error listing S3 images for {prefix}: {e}")
+        return 0
+
+def _sync_deal_to_wix(deal_id, neighborhood=None):
     """Sync a single deal from Pipedrive to Wix after image processing"""
     from routes.wix_sync import _get_pipedrive_field_map, _build_wix_payload
     
@@ -438,6 +470,34 @@ def rosie_images():
     image_urls = data.get("image_urls")
     picture_number = data.get("picture_number")
     force_refresh = data.get("force_refresh", False)
+
+    # --- Per-deal image tracking logic ---
+    try:
+        deal_id_int = int(deal_id)
+    except Exception:
+        deal_id_int = deal_id  # fallback to string if not convertible
+
+    try:
+        picture_number_int = int(picture_number) if picture_number is not None else None
+    except Exception:
+        picture_number_int = picture_number
+
+    if deal_id_int and picture_number_int:
+        with DEAL_IMAGE_TRACKER_LOCK:
+            DEAL_IMAGE_TRACKER[deal_id_int].add(picture_number_int)
+            print(f"[ROSIE DEBUG] DEAL_IMAGE_TRACKER[{deal_id_int}] now: {DEAL_IMAGE_TRACKER[deal_id_int]}")
+
+        # Only check for sync if neighborhood is present
+        if neighborhood:
+            s3_image_count = _list_s3_images_for_deal(neighborhood, deal_id_int)
+            with DEAL_IMAGE_TRACKER_LOCK:
+                processed_count = len(DEAL_IMAGE_TRACKER[deal_id_int])
+            print(f"[ROSIE DEBUG] Processed images for deal {deal_id_int}: {processed_count}, S3 image count: {s3_image_count}")
+            if processed_count == s3_image_count and s3_image_count > 0:
+                print(f"[ROSIE DEBUG] All images processed for deal {deal_id_int}. Triggering sync_to_wix.")
+                _sync_deal_to_wix(deal_id_int, neighborhood)
+                with DEAL_IMAGE_TRACKER_LOCK:
+                    DEAL_IMAGE_TRACKER[deal_id_int].clear()
     
     # Filter out non-image files like .DS_Store
     VALID_IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff')
