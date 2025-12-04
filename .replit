@@ -38,6 +38,10 @@ localPort = 8000
 externalPort = 8000
 
 [[ports]]
+localPort = 36969
+externalPort = 3002
+
+[[ports]]
 localPort = 37267
 externalPort = 3000
 
@@ -49,6 +53,7 @@ externalPort = 3001
 
 [userenv.shared]
 WIX_SITE_ID = "43a33b0d-fd85-4458-8b88-21cfc9cc4fbc"
+AWS_S3_BUCKET = "neighborhood-listing-images"
 
 [deployment]
 deploymentTarget = "autoscale"

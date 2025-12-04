@@ -335,31 +335,67 @@ Example BAD (promotional or repetitive):
     except Exception:
         return {"alt_text": "", "tooltip_text": ""}
 
-def _list_s3_images_for_deal(neighborhood, deal_id):
+def _list_s3_images_for_deal(neighborhood, deal_id, return_keys=False):
     """
     List all image files in S3 for the given deal and neighborhood.
-    Returns the count of image files.
+    
+    Args:
+        neighborhood: S3 folder for neighborhood
+        deal_id: Deal ID folder
+        return_keys: If True, returns list of image keys. If False, returns count only.
+    
+    Returns:
+        If return_keys=True: list of S3 keys (sorted numerically)
+        If return_keys=False: count of image files
     """
-    s3 = boto3.client("s3")
+    region = os.environ.get("AWS_REGION", "us-east-2")
+    access_key = os.environ.get("AWS_ACCESS_KEY_ID")
+    secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
     bucket = os.environ.get("AWS_S3_BUCKET")
+    
     if not bucket:
         print("[ROSIE DEBUG] No AWS_S3_BUCKET set in environment")
-        return 0
+        return [] if return_keys else 0
+    
+    if not all([access_key, secret_key]):
+        print("[ROSIE DEBUG] Missing AWS credentials")
+        return [] if return_keys else 0
+    
+    s3 = boto3.client(
+        "s3",
+        region_name=region,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key
+    )
+    
     prefix = f"Neighborhood Listing Images/{neighborhood}/{deal_id}/"
     try:
         paginator = s3.get_paginator("list_objects_v2")
         page_iterator = paginator.paginate(Bucket=bucket, Prefix=prefix)
-        count = 0
+        image_keys = []
         for page in page_iterator:
             for obj in page.get("Contents", []):
                 key = obj["Key"]
                 if key.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff')):
-                    count += 1
-        print(f"[ROSIE DEBUG] S3 image count for {prefix}: {count}")
-        return count
+                    image_keys.append(key)
+        
+        # Sort numerically by filename (1.jpg, 2.jpg, ..., 10.jpg, 11.jpg)
+        def sort_key(k):
+            try:
+                filename = k.split('/')[-1].split('.')[0]
+                return int(filename)
+            except:
+                return 999999
+        
+        image_keys.sort(key=sort_key)
+        print(f"[ROSIE DEBUG] S3 images for {prefix}: {len(image_keys)} files")
+        
+        if return_keys:
+            return image_keys
+        return len(image_keys)
     except Exception as e:
         print(f"[ROSIE DEBUG] Error listing S3 images for {prefix}: {e}")
-        return 0
+        return [] if return_keys else 0
 
 def _sync_deal_to_wix(deal_id, neighborhood=None):
     """Sync a single deal from Pipedrive to Wix after image processing"""
@@ -474,6 +510,9 @@ def rosie_images():
     force_refresh = data.get("force_refresh", False)
     
     # If filenames provided instead of image_urls, build full URLs server-side
+    # FALLBACK: If Make.com sends only 1 filename, list S3 directly to get ALL files
+    S3_BASE = "https://neighborhood-listing-images.s3.us-east-2.amazonaws.com"
+    
     if filenames and not image_urls:
         # Handle filenames as string (comma-separated) or array
         if isinstance(filenames, str):
@@ -482,18 +521,35 @@ def rosie_images():
             except:
                 filenames = [f.strip() for f in filenames.split(',') if f.strip()]
         
-        # Build full S3 URLs from filenames
-        S3_BASE = "https://neighborhood-listing-images.s3.us-east-2.amazonaws.com/Neighborhood Listing Images"
-        image_urls = []
-        for filename in filenames:
-            # Clean up filename - handle if it's just the name or full path
-            if isinstance(filename, str):
-                clean_name = filename.strip().split('/')[-1]  # Get just the filename
-                if clean_name:
-                    full_url = f"{S3_BASE}/{neighborhood}/{deal_id}/{clean_name}"
-                    image_urls.append(full_url)
-        
-        print(f"✓ Built {len(image_urls)} URLs from filenames: {image_urls}")
+        # If only 1 filename received, use S3 listing to get ALL files
+        if len(filenames) <= 1 and deal_id and neighborhood:
+            print(f"⚠️ Only {len(filenames)} filename(s) received from Make.com - listing S3 directly to get all files")
+            s3_keys = _list_s3_images_for_deal(neighborhood, deal_id, return_keys=True)
+            
+            if s3_keys:
+                image_urls = [f"{S3_BASE}/{key}" for key in s3_keys]
+                print(f"✓ Built {len(image_urls)} URLs from S3 listing: {[url.split('/')[-1] for url in image_urls]}")
+            else:
+                # Fallback to the single filename if S3 listing fails
+                print(f"⚠️ S3 listing failed, using provided filename(s)")
+                image_urls = []
+                for filename in filenames:
+                    if isinstance(filename, str):
+                        clean_name = filename.strip().split('/')[-1]
+                        if clean_name:
+                            full_url = f"{S3_BASE}/Neighborhood Listing Images/{neighborhood}/{deal_id}/{clean_name}"
+                            image_urls.append(full_url)
+        else:
+            # Multiple filenames provided, use them directly
+            image_urls = []
+            for filename in filenames:
+                if isinstance(filename, str):
+                    clean_name = filename.strip().split('/')[-1]
+                    if clean_name:
+                        full_url = f"{S3_BASE}/Neighborhood Listing Images/{neighborhood}/{deal_id}/{clean_name}"
+                        image_urls.append(full_url)
+            
+            print(f"✓ Built {len(image_urls)} URLs from filenames: {image_urls}")
 
     # --- Per-deal image tracking logic ---
     try:
