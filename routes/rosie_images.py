@@ -464,12 +464,36 @@ def rosie_images():
     # Debug: Log exactly what Make.com is sending
     print(f"DEBUG RECEIVED: deal_id={data.get('deal_id')}, neighborhood={data.get('neighborhood')}")
     print(f"DEBUG RECEIVED: image_urls={data.get('image_urls')}")
+    print(f"DEBUG RECEIVED: filenames={data.get('filenames')}")
     
     deal_id = data.get("deal_id")
     neighborhood = data.get("neighborhood")
     image_urls = data.get("image_urls")
+    filenames = data.get("filenames")
     picture_number = data.get("picture_number")
     force_refresh = data.get("force_refresh", False)
+    
+    # If filenames provided instead of image_urls, build full URLs server-side
+    if filenames and not image_urls:
+        # Handle filenames as string (comma-separated) or array
+        if isinstance(filenames, str):
+            try:
+                filenames = json.loads(filenames)
+            except:
+                filenames = [f.strip() for f in filenames.split(',') if f.strip()]
+        
+        # Build full S3 URLs from filenames
+        S3_BASE = "https://neighborhood-listing-images.s3.us-east-2.amazonaws.com/Neighborhood Listing Images"
+        image_urls = []
+        for filename in filenames:
+            # Clean up filename - handle if it's just the name or full path
+            if isinstance(filename, str):
+                clean_name = filename.strip().split('/')[-1]  # Get just the filename
+                if clean_name:
+                    full_url = f"{S3_BASE}/{neighborhood}/{deal_id}/{clean_name}"
+                    image_urls.append(full_url)
+        
+        print(f"✓ Built {len(image_urls)} URLs from filenames: {image_urls}")
 
     # --- Per-deal image tracking logic ---
     try:
