@@ -503,8 +503,21 @@ def rosie_images():
         except json.JSONDecodeError:
             print(f"[ROSIE DEBUG] Could not parse payload string, using raw data")
 
+    # Handle Make.com structure with 'client' wrapper
+    if 'client' in data and isinstance(data['client'], dict):
+        client_data = data['client']
+        print(f"[ROSIE DEBUG] Found 'client' wrapper, keys: {list(client_data.keys())}")
+        # Extract deal_id, neighborhood, filenames from client if present
+        if 'deal_id' in client_data or 'Deal ID' in client_data:
+            data = client_data
+            print(f"[ROSIE DEBUG] Using 'client' data as main payload")
+        # Also check for Deal ID with space (Pipedrive format)
+        if 'Deal ID' in data and 'deal_id' not in data:
+            data['deal_id'] = data['Deal ID']
+
     # Detailed debug logging for incoming payload and deal_id
     print(f"[ROSIE DEBUG] Incoming payload keys: {list(data.keys())}")
+    print(f"[ROSIE DEBUG] Full payload sample: {str(data)[:500]}")
     print(f"[ROSIE DEBUG] deal_id: {data.get('deal_id')}")
 
     # Debug: Log exactly what Make.com is sending
