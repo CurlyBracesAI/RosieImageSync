@@ -699,13 +699,38 @@ def update_gallery_links():
     elif filter_id:
         deals = _fetch_pipedrive_deals_filtered(filter_id)
     else:
-        return jsonify({"error": "Must provide either deal_id or filter_id parameter"}), 400
+        # Fetch ALL deals from Pipedrive (paginated)
+        print("Fetching ALL deals from Pipedrive...")
+        deals = []
+        start = 0
+        limit = 100
+        while True:
+            try:
+                response = requests.get(
+                    f"{PIPEDRIVE_BASE}/deals",
+                    params={"api_token": PIPEDRIVE_API_TOKEN, "start": start, "limit": limit}
+                )
+                response.raise_for_status()
+                data = response.json()
+                batch = data.get("data") or []
+                if not batch:
+                    break
+                deals.extend(batch)
+                print(f"  Fetched {len(deals)} deals so far...")
+                if not data.get("additional_data", {}).get("pagination", {}).get("more_items_in_collection"):
+                    break
+                start += limit
+            except Exception as e:
+                print(f"Error fetching deals: {e}")
+                break
+        print(f"✓ Total deals fetched: {len(deals)}")
     
     print(f"Processing {len(deals)} deals...")
     
     for deal in deals:
         d_id = deal.get("id")
-        slug_address = deal.get(slug_address_key, "").strip()
+        slug_address_raw = deal.get(slug_address_key)
+        slug_address = (slug_address_raw or "").strip()
         
         if not slug_address:
             skipped.append({"deal_id": d_id, "reason": "No Slug Address"})
