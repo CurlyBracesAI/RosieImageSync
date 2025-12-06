@@ -503,17 +503,45 @@ def rosie_images():
         except json.JSONDecodeError:
             print(f"[ROSIE DEBUG] Could not parse payload string, using raw data")
 
-    # Handle Make.com structure with 'client' wrapper
+    # Handle Make.com structure with 'client' wrapper (Pipedrive deal data)
     if 'client' in data and isinstance(data['client'], dict):
         client_data = data['client']
-        print(f"[ROSIE DEBUG] Found 'client' wrapper, keys: {list(client_data.keys())}")
-        # Extract deal_id, neighborhood, filenames from client if present
-        if 'deal_id' in client_data or 'Deal ID' in client_data:
-            data = client_data
-            print(f"[ROSIE DEBUG] Using 'client' data as main payload")
-        # Also check for Deal ID with space (Pipedrive format)
-        if 'Deal ID' in data and 'deal_id' not in data:
-            data['deal_id'] = data['Deal ID']
+        print(f"[ROSIE DEBUG] Found 'client' wrapper with Pipedrive deal data")
+        
+        # Extract deal_id from client.id (Pipedrive deal ID)
+        if 'id' in client_data:
+            data['deal_id'] = str(client_data['id'])
+            print(f"[ROSIE DEBUG] Extracted deal_id from client.id: {data['deal_id']}")
+        
+        # Look for neighborhood in known Pipedrive custom field patterns
+        # Check common field names and also scan for neighborhood-related values
+        neighborhood_field_names = ['neighborhood', 'Neighborhood', 'Neighborhood (primary)']
+        for field_name in neighborhood_field_names:
+            if field_name in client_data:
+                data['neighborhood'] = client_data[field_name]
+                print(f"[ROSIE DEBUG] Found neighborhood in '{field_name}': {data['neighborhood']}")
+                break
+        
+        # If not found by name, scan all fields for neighborhood label patterns
+        if 'neighborhood' not in data:
+            for key, value in client_data.items():
+                if isinstance(value, dict) and 'label' in value:
+                    label = value.get('label', '')
+                    # Check if this looks like a neighborhood field
+                    if any(n in label for n in ['Upper West', 'Upper East', 'Midtown', 'Chelsea', 'Brooklyn', 'Village', 'Gramercy']):
+                        data['neighborhood'] = label
+                        print(f"[ROSIE DEBUG] Found neighborhood in custom field '{key}': {label}")
+                        break
+                elif isinstance(value, str) and any(n in value for n in ['Upper West', 'Upper East', 'Midtown', 'Chelsea', 'Brooklyn', 'Village', 'Gramercy']):
+                    data['neighborhood'] = value
+                    print(f"[ROSIE DEBUG] Found neighborhood in field '{key}': {value}")
+                    break
+        
+        # Copy filenames if present in client data
+        if 'filenames' in client_data:
+            data['filenames'] = client_data['filenames']
+        if 'image_urls' in client_data:
+            data['image_urls'] = client_data['image_urls']
 
     # Detailed debug logging for incoming payload and deal_id
     print(f"[ROSIE DEBUG] Incoming payload keys: {list(data.keys())}")
