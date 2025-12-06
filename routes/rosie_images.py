@@ -520,6 +520,31 @@ def rosie_images():
             data['deal_id'] = str(client_data['id'])
             print(f"[ROSIE DEBUG] Extracted deal_id from client.id: {data['deal_id']}")
         
+        # Extract neighborhood from Pipedrive custom fields if not at top level
+        if not top_level_neighborhood:
+            # Log all fields with 'label' to help find neighborhood
+            label_fields = {}
+            for key, value in client_data.items():
+                if isinstance(value, dict) and 'label' in value:
+                    label_fields[key] = value.get('label')
+            
+            if label_fields:
+                print(f"[ROSIE DEBUG] Fields with labels: {label_fields}")
+            
+            # Look for neighborhood field - it typically has a short label like "Upper West Side", "Chelsea", etc.
+            neighborhood_keywords = ['Upper West', 'Upper East', 'Midtown', 'Chelsea', 'Brooklyn', 'Village', 
+                                    'Gramercy', 'Flatiron', 'Tribeca', 'Soho', 'Harlem', 'Financial', 'Battery',
+                                    'Westchester', 'Hudson', 'Circle']
+            
+            for key, value in client_data.items():
+                if isinstance(value, dict) and 'label' in value:
+                    label = value.get('label', '')
+                    # Neighborhood labels are typically short (under 50 chars) and match known patterns
+                    if len(label) < 50 and any(n in label for n in neighborhood_keywords):
+                        data['neighborhood'] = label
+                        print(f"[ROSIE DEBUG] Extracted neighborhood from custom field: {label}")
+                        break
+        
         # Copy filenames if present in client data
         if 'filenames' in client_data and not data.get('filenames'):
             data['filenames'] = client_data['filenames']
