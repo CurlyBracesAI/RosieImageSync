@@ -493,8 +493,18 @@ def rosie_images():
         print(f"ERROR: No data received")
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
 
+    # Handle Make.com's nested payload format - data may be wrapped in a 'payload' field
+    if 'payload' in data and isinstance(data['payload'], str):
+        try:
+            payload_data = json.loads(data['payload'])
+            if isinstance(payload_data, dict):
+                data = payload_data
+                print(f"[ROSIE DEBUG] Unwrapped nested payload from Make.com")
+        except json.JSONDecodeError:
+            print(f"[ROSIE DEBUG] Could not parse payload string, using raw data")
+
     # Detailed debug logging for incoming payload and deal_id
-    print(f"[ROSIE DEBUG] Incoming payload: {json.dumps(data, indent=2)}")
+    print(f"[ROSIE DEBUG] Incoming payload keys: {list(data.keys())}")
     print(f"[ROSIE DEBUG] deal_id: {data.get('deal_id')}")
 
     # Debug: Log exactly what Make.com is sending
