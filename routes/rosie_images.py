@@ -493,67 +493,8 @@ def rosie_images():
         print(f"ERROR: No data received")
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
 
-    # Handle Make.com's nested payload format - data may be wrapped in a 'payload' field
-    if 'payload' in data and isinstance(data['payload'], str):
-        try:
-            payload_data = json.loads(data['payload'])
-            if isinstance(payload_data, dict):
-                data = payload_data
-                print(f"[ROSIE DEBUG] Unwrapped nested payload from Make.com")
-        except json.JSONDecodeError:
-            print(f"[ROSIE DEBUG] Could not parse payload string, using raw data")
-
-    # Handle Make.com structure - prioritize top-level fields over nested client data
-    # Check if top-level deal_id and neighborhood exist BEFORE extracting from client
-    top_level_deal_id = data.get('deal_id')
-    top_level_neighborhood = data.get('neighborhood')
-    
-    print(f"[ROSIE DEBUG] Top-level fields - deal_id: {top_level_deal_id}, neighborhood: {top_level_neighborhood}")
-    
-    # Only extract from client if top-level fields are missing
-    if 'client' in data and isinstance(data['client'], dict):
-        client_data = data['client']
-        print(f"[ROSIE DEBUG] Found 'client' wrapper with Pipedrive deal data")
-        
-        # Extract deal_id from client.id only if not already provided at top level
-        if not top_level_deal_id and 'id' in client_data:
-            data['deal_id'] = str(client_data['id'])
-            print(f"[ROSIE DEBUG] Extracted deal_id from client.id: {data['deal_id']}")
-        
-        # Extract neighborhood from Pipedrive custom fields if not at top level
-        if not top_level_neighborhood:
-            # Log all fields with 'label' to help find neighborhood
-            label_fields = {}
-            for key, value in client_data.items():
-                if isinstance(value, dict) and 'label' in value:
-                    label_fields[key] = value.get('label')
-            
-            if label_fields:
-                print(f"[ROSIE DEBUG] Fields with labels: {label_fields}")
-            
-            # Look for neighborhood field - it typically has a short label like "Upper West Side", "Chelsea", etc.
-            neighborhood_keywords = ['Upper West', 'Upper East', 'Midtown', 'Chelsea', 'Brooklyn', 'Village', 
-                                    'Gramercy', 'Flatiron', 'Tribeca', 'Soho', 'Harlem', 'Financial', 'Battery',
-                                    'Westchester', 'Hudson', 'Circle']
-            
-            for key, value in client_data.items():
-                if isinstance(value, dict) and 'label' in value:
-                    label = value.get('label', '')
-                    # Neighborhood labels are typically short (under 50 chars) and match known patterns
-                    if len(label) < 50 and any(n in label for n in neighborhood_keywords):
-                        data['neighborhood'] = label
-                        print(f"[ROSIE DEBUG] Extracted neighborhood from custom field: {label}")
-                        break
-        
-        # Copy filenames if present in client data
-        if 'filenames' in client_data and not data.get('filenames'):
-            data['filenames'] = client_data['filenames']
-        if 'image_urls' in client_data and not data.get('image_urls'):
-            data['image_urls'] = client_data['image_urls']
-
     # Detailed debug logging for incoming payload and deal_id
-    print(f"[ROSIE DEBUG] Incoming payload keys: {list(data.keys())}")
-    print(f"[ROSIE DEBUG] Full payload sample: {str(data)[:500]}")
+    print(f"[ROSIE DEBUG] Incoming payload: {json.dumps(data, indent=2)}")
     print(f"[ROSIE DEBUG] deal_id: {data.get('deal_id')}")
 
     # Debug: Log exactly what Make.com is sending
