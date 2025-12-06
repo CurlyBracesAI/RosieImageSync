@@ -52,6 +52,15 @@ def match():
         print(f"[MATCH DEBUG] Client: {client_data.get('title', 'Unknown')}")
         print(f"[MATCH DEBUG] Partners count: {len(partners_data)}")
         
+        # Debug: Print first partner's keys and title
+        if partners_data:
+            first_partner = partners_data[0] if isinstance(partners_data, list) else partners_data
+            if isinstance(first_partner, dict):
+                print(f"[MATCH DEBUG] First partner keys: {list(first_partner.keys())[:10]}")
+                print(f"[MATCH DEBUG] First partner title: {first_partner.get('title', 'No title')}")
+            else:
+                print(f"[MATCH DEBUG] Partner data type: {type(first_partner)}")
+        
         client_name = _extract_client_name(client_data)
         client_requirements = _extract_client_requirements(client_data)
         partner_summaries = [_summarize_partner(p) for p in partners_data]
