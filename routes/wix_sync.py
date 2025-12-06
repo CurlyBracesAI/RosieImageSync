@@ -645,3 +645,98 @@ def sync_deal(deal_id):
     except Exception as e:
         print(f"✗ Error updating Wix: {e}")
         return jsonify({"error": f"Could not sync to Wix: {str(e)}"}), 500
+
+
+@bp_wix_sync.route("/update-gallery-links", methods=["POST"])
+def update_gallery_links():
+    """
+    Update Partner Wellspring Weblink field in Pipedrive with correct gallery page URLs.
+    Uses the Slug Address field to construct: 
+    https://www.wellspringsuites.com/neighborhood-listing-therapist-office-rental/gallery/{slug-address}
+    
+    Optional query params:
+    - filter_id: Pipedrive filter ID to limit which deals to update
+    - deal_id: Single deal ID to update (for testing)
+    """
+    if not PIPEDRIVE_API_TOKEN:
+        return jsonify({"error": "Missing Pipedrive API token"}), 500
+    
+    deal_id = request.args.get("deal_id")
+    filter_id = request.args.get("filter_id")
+    
+    GALLERY_BASE_URL = "https://www.wellspringsuites.com/neighborhood-listing-therapist-office-rental/gallery"
+    
+    field_data = _get_pipedrive_field_map()
+    if not field_data:
+        return jsonify({"error": "Could not fetch Pipedrive field map"}), 500
+    
+    field_map = field_data.get("field_map", {})
+    slug_address_key = field_map.get("Slug Address")
+    weblink_key = field_map.get("Partner Wellspring Weblink")
+    
+    if not slug_address_key:
+        return jsonify({"error": "Could not find 'Slug Address' field in Pipedrive"}), 500
+    if not weblink_key:
+        return jsonify({"error": "Could not find 'Partner Wellspring Weblink' field in Pipedrive"}), 500
+    
+    print(f"✓ Found field keys: Slug Address={slug_address_key}, Partner Wellspring Weblink={weblink_key}")
+    
+    updated = []
+    skipped = []
+    errors = []
+    
+    if deal_id:
+        try:
+            response = requests.get(
+                f"{PIPEDRIVE_BASE}/deals/{deal_id}",
+                params={"api_token": PIPEDRIVE_API_TOKEN}
+            )
+            response.raise_for_status()
+            deal = response.json().get("data")
+            deals = [deal] if deal else []
+        except Exception as e:
+            return jsonify({"error": f"Could not fetch deal {deal_id}: {str(e)}"}), 500
+    elif filter_id:
+        deals = _fetch_pipedrive_deals_filtered(filter_id)
+    else:
+        return jsonify({"error": "Must provide either deal_id or filter_id parameter"}), 400
+    
+    print(f"Processing {len(deals)} deals...")
+    
+    for deal in deals:
+        d_id = deal.get("id")
+        slug_address = deal.get(slug_address_key, "").strip()
+        
+        if not slug_address:
+            skipped.append({"deal_id": d_id, "reason": "No Slug Address"})
+            continue
+        
+        gallery_url = f"{GALLERY_BASE_URL}/{slug_address}"
+        
+        try:
+            update_response = requests.put(
+                f"{PIPEDRIVE_BASE}/deals/{d_id}",
+                params={"api_token": PIPEDRIVE_API_TOKEN},
+                json={weblink_key: gallery_url}
+            )
+            update_response.raise_for_status()
+            updated.append({"deal_id": d_id, "slug": slug_address, "url": gallery_url})
+            print(f"  ✓ Deal {d_id}: {gallery_url}")
+        except Exception as e:
+            errors.append({"deal_id": d_id, "error": str(e)})
+            print(f"  ✗ Deal {d_id}: {e}")
+    
+    print(f"✓ Completed: {len(updated)} updated, {len(skipped)} skipped, {len(errors)} errors")
+    
+    return jsonify({
+        "status": "success",
+        "summary": {
+            "total_processed": len(deals),
+            "updated": len(updated),
+            "skipped": len(skipped),
+            "errors": len(errors)
+        },
+        "updated_deals": updated,
+        "skipped_deals": skipped,
+        "error_deals": errors
+    }), 200
