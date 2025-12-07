@@ -703,47 +703,17 @@ def rosie_images():
     # Update Pipedrive with alt text and tooltip data
     pipedrive_updated = _update_pipedrive_deal(deal_id, processed, picture_number)
 
-    # --- End-of-function per-deal sync logic ---
-    # Only run if deal_id and neighborhood are present
-    if deal_id and neighborhood:
-        try:
-            deal_id_key = int(deal_id)
-        except Exception:
-            deal_id_key = deal_id
-        with DEAL_IMAGE_TRACKER_LOCK:
-            processed_count = len(DEAL_IMAGE_TRACKER[deal_id_key])
-        # S3 count helper
-        def _count_s3_images_for_deal(neighborhood, deal_id):
-            s3 = boto3.client("s3")
-            bucket = os.environ.get("AWS_S3_BUCKET")
-            if not bucket:
-                print("[ROSIE DEBUG] No AWS_S3_BUCKET set in environment")
-                return 0
-            prefix = f"Neighborhood Listing Images/{neighborhood}/{deal_id}/"
-            try:
-                paginator = s3.get_paginator("list_objects_v2")
-                page_iterator = paginator.paginate(Bucket=bucket, Prefix=prefix)
-                count = 0
-                for page in page_iterator:
-                    for obj in page.get("Contents", []):
-                        key = obj["Key"]
-                        if key.lower().endswith(('.jpg', '.jpeg', '.png')):
-                            count += 1
-                print(f"[ROSIE DEBUG] S3 image count for {prefix}: {count}")
-                return count
-            except Exception as e:
-                print(f"[ROSIE DEBUG] Error listing S3 images for {prefix}: {e}")
-                return 0
-        expected_count = _count_s3_images_for_deal(neighborhood, deal_id_key)
-        print(f"[ROSIE DEBUG] Processed images for deal {deal_id_key}: {processed_count}, S3 image count: {expected_count}")
-        if processed_count == expected_count and expected_count > 0:
-            print(f"[ROSIE DEBUG] All images processed for deal {deal_id_key}. Triggering sync_to_wix.")
-            _sync_deal_to_wix(deal_id_key, neighborhood)
-            with DEAL_IMAGE_TRACKER_LOCK:
-                DEAL_IMAGE_TRACKER[deal_id_key].clear()
-
-    # Note: Wix sync is NOT done here to avoid duplicates (one sync per image = many duplicates)
-    # Make.com should call /sync-deal/{deal_id} ONCE at the end after all images are processed
+    # --- Trigger Wix sync after processing all images ---
+    # Since we now process ALL images in one request (via S3 listing), sync to Wix immediately
+    wix_synced = False
+    if pipedrive_updated and deal_id and neighborhood and len(processed) > 0:
+        print(f"✓ All {len(processed)} images processed for deal {deal_id}. Triggering Wix sync...")
+        sync_result = _sync_deal_to_wix(deal_id, neighborhood)
+        wix_synced = sync_result.get("synced", False)
+        if wix_synced:
+            print(f"✓ Wix sync completed for deal {deal_id}")
+        else:
+            print(f"⚠️ Wix sync issue for deal {deal_id}: {sync_result.get('error', 'unknown')}")
     
     return jsonify({
         "status": "ok",
@@ -752,5 +722,6 @@ def rosie_images():
         "image_count": len(image_urls),
         "picture_number": picture_number,
         "images": processed,
-        "pipedrive_updated": pipedrive_updated
+        "pipedrive_updated": pipedrive_updated,
+        "wix_synced": wix_synced
     })
