@@ -66,10 +66,30 @@ def _parse_aggregated_partners(partners_raw):
             pass
         
         # Try to parse as aggregated text format
-        # Look for patterns like "Deal ID: 1234" or similar separators
         partners = []
         
-        # Split by common delimiters
+        # Check if the format uses { } braces to separate partners
+        # Pattern: { "Deal ID": 1234 ... } { "Deal ID": 5678 ... }
+        if '{' in partners_raw and '"Deal ID"' in partners_raw:
+            # Split by closing brace followed by opening brace
+            # or find all blocks between { and }
+            brace_pattern = re.compile(r'\{([^{}]+)\}', re.DOTALL)
+            matches = brace_pattern.findall(partners_raw)
+            print(f"[MATCH DEBUG] Found {len(matches)} brace-delimited blocks")
+            
+            for block in matches:
+                block = block.strip()
+                if not block:
+                    continue
+                partner = _parse_partner_text(block)
+                if partner:
+                    partners.append(partner)
+            
+            if partners:
+                print(f"[MATCH DEBUG] Successfully parsed {len(partners)} partners from brace format")
+                return partners
+        
+        # Try splitting by common delimiters
         chunks = re.split(r'(?:---+|\n\n\n+|={3,})', partners_raw)
         
         for chunk in chunks:
@@ -98,38 +118,62 @@ def _parse_partner_text(text):
     
     partner = {}
     
-    # Try to extract Deal ID
-    deal_id_match = re.search(r'Deal\s*ID[:\s]+(\d+)', text, re.IGNORECASE)
+    # Try to extract Deal ID - handles "Deal ID": 1234 or Deal ID: 1234
+    deal_id_match = re.search(r'"?Deal\s*ID"?\s*[:\s]+(\d+)', text, re.IGNORECASE)
     if deal_id_match:
         partner['id'] = int(deal_id_match.group(1))
     
-    # Try to extract Title
-    title_match = re.search(r'Title[:\s]+([^\n]+)', text, re.IGNORECASE)
+    # Try to extract Title - handles "Title": value or Title: value
+    title_match = re.search(r'"?Title"?\s*[:\s]+([^\n]+)', text, re.IGNORECASE)
     if title_match:
-        partner['title'] = title_match.group(1).strip()
+        partner['title'] = title_match.group(1).strip().strip('"')
     
-    # Try to extract Neighborhood
-    neighborhood_match = re.search(r'Neighborhood[:\s]+([^\n]+)', text, re.IGNORECASE)
+    # Try to extract Name
+    name_match = re.search(r'"?Name"?\s*[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if name_match:
+        partner['name'] = name_match.group(1).strip().strip('"')
+    
+    # Try to extract Neighborhood (primary)
+    neighborhood_match = re.search(r'"?Neighborhood"?\s*\(?primary\)?\s*[:\s]+([^\n]+)', text, re.IGNORECASE)
     if neighborhood_match:
-        partner['neighborhood'] = neighborhood_match.group(1).strip()
+        partner['neighborhood'] = neighborhood_match.group(1).strip().strip('"')
     
-    # Try to extract Price/Budget
-    price_match = re.search(r'(?:Price|Budget)[:\s]+([^\n]+)', text, re.IGNORECASE)
-    if price_match:
-        partner['price'] = price_match.group(1).strip()
+    # Try to extract Price ranges
+    ft_price_match = re.search(r'"?Price Range:\s*FT\s*(?:Windowed)?"?\s*[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if ft_price_match:
+        partner['price_ft'] = ft_price_match.group(1).strip().strip('"')
+    
+    pt_price_match = re.search(r'"?Price Range:\s*PT\s*(?:Windowed)?"?\s*[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if pt_price_match:
+        partner['price_pt'] = pt_price_match.group(1).strip().strip('"')
     
     # Try to extract Availability
-    avail_match = re.search(r'(?:Availability|FT/PT)[:\s]+([^\n]+)', text, re.IGNORECASE)
+    avail_match = re.search(r'"?FT/PT Availability requirement"?\s*[:\s]+([^\n]+)', text, re.IGNORECASE)
     if avail_match:
-        partner['availability'] = avail_match.group(1).strip()
+        avail_text = avail_match.group(1).strip()
+        label_match = re.search(r'"label"\s*:\s*"([^"]+)"', avail_text)
+        if label_match:
+            partner['availability'] = label_match.group(1)
+        else:
+            partner['availability'] = avail_text.strip('"')
     
     # Try to extract Office Notes
-    notes_match = re.search(r'(?:Office Notes|Notes)[:\s]+([^\n]+)', text, re.IGNORECASE)
+    notes_match = re.search(r'"?Office Notes"?\s*[:\s]+([^\n]+)', text, re.IGNORECASE)
     if notes_match:
-        partner['office_notes'] = notes_match.group(1).strip()
+        partner['office_notes'] = notes_match.group(1).strip().strip('"')
+    
+    # Try to extract Profession
+    profession_match = re.search(r'"?Profession Use"?\s*[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if profession_match:
+        partner['profession'] = profession_match.group(1).strip().strip('"')
+    
+    # Try to extract Link
+    link_match = re.search(r'"?Link"?\s*[:\s]+(https?://[^\s\n]+)', text, re.IGNORECASE)
+    if link_match:
+        partner['link'] = link_match.group(1).strip()
     
     # Store raw text for OpenAI to parse
-    partner['raw_text'] = text[:1000]  # Limit to first 1000 chars
+    partner['raw_text'] = text[:1500]  # Limit to first 1500 chars
     
     return partner if partner.get('id') or partner.get('title') else None
 
