@@ -1,5 +1,7 @@
 from flask import Blueprint, jsonify, request
 import os
+import re
+import json
 from openai import OpenAI
 
 bp_match = Blueprint("match", __name__)
@@ -10,6 +12,119 @@ def _get_openai_client():
         return None
     return OpenAI(api_key=api_key)
 
+
+def _parse_aggregated_partners(partners_raw):
+    """
+    Parse partners data from Make.com aggregator.
+    Can handle:
+    - JSON array of partner objects
+    - Text string with partner data (aggregated format)
+    - Single partner object
+    """
+    # If it's already a list of dicts, return as-is
+    if isinstance(partners_raw, list):
+        if all(isinstance(p, dict) for p in partners_raw):
+            return partners_raw
+        # List of strings - try to parse each
+        parsed = []
+        for item in partners_raw:
+            if isinstance(item, dict):
+                parsed.append(item)
+            elif isinstance(item, str):
+                try:
+                    parsed.append(json.loads(item))
+                except:
+                    # Try to extract deal info from text
+                    partner = _parse_partner_text(item)
+                    if partner:
+                        parsed.append(partner)
+        return parsed
+    
+    # If it's a single dict, wrap in list
+    if isinstance(partners_raw, dict):
+        return [partners_raw]
+    
+    # If it's a string, try to parse it
+    if isinstance(partners_raw, str):
+        # Try JSON first
+        try:
+            parsed = json.loads(partners_raw)
+            if isinstance(parsed, list):
+                return parsed
+            elif isinstance(parsed, dict):
+                return [parsed]
+        except:
+            pass
+        
+        # Try to parse as aggregated text format
+        # Look for patterns like "Deal ID: 1234" or similar separators
+        partners = []
+        
+        # Split by common delimiters
+        chunks = re.split(r'(?:---+|\n\n\n+|={3,})', partners_raw)
+        
+        for chunk in chunks:
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            partner = _parse_partner_text(chunk)
+            if partner:
+                partners.append(partner)
+        
+        # If no chunks found, try the whole thing as one partner
+        if not partners and partners_raw.strip():
+            partner = _parse_partner_text(partners_raw)
+            if partner:
+                partners.append(partner)
+        
+        return partners
+    
+    return []
+
+
+def _parse_partner_text(text):
+    """Extract partner info from text format"""
+    if not text or not isinstance(text, str):
+        return None
+    
+    partner = {}
+    
+    # Try to extract Deal ID
+    deal_id_match = re.search(r'Deal\s*ID[:\s]+(\d+)', text, re.IGNORECASE)
+    if deal_id_match:
+        partner['id'] = int(deal_id_match.group(1))
+    
+    # Try to extract Title
+    title_match = re.search(r'Title[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if title_match:
+        partner['title'] = title_match.group(1).strip()
+    
+    # Try to extract Neighborhood
+    neighborhood_match = re.search(r'Neighborhood[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if neighborhood_match:
+        partner['neighborhood'] = neighborhood_match.group(1).strip()
+    
+    # Try to extract Price/Budget
+    price_match = re.search(r'(?:Price|Budget)[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if price_match:
+        partner['price'] = price_match.group(1).strip()
+    
+    # Try to extract Availability
+    avail_match = re.search(r'(?:Availability|FT/PT)[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if avail_match:
+        partner['availability'] = avail_match.group(1).strip()
+    
+    # Try to extract Office Notes
+    notes_match = re.search(r'(?:Office Notes|Notes)[:\s]+([^\n]+)', text, re.IGNORECASE)
+    if notes_match:
+        partner['office_notes'] = notes_match.group(1).strip()
+    
+    # Store raw text for OpenAI to parse
+    partner['raw_text'] = text[:1000]  # Limit to first 1000 chars
+    
+    return partner if partner.get('id') or partner.get('title') else None
+
+
 @bp_match.route("/match", methods=["POST"])
 def match():
     """
@@ -19,7 +134,7 @@ def match():
     Expected payload from Make.com:
     {
         "client": { ... Pipedrive deal data for the client ... },
-        "partners": [ ... array of Pipedrive deal data for potential matches ... ]
+        "partners": [ ... array or aggregated text of partner data ... ]
     }
     
     Returns:
@@ -34,8 +149,13 @@ def match():
         
         print(f"[MATCH DEBUG] Received payload keys: {list(data.keys()) if data else 'None'}")
         
+        # Debug: show raw data types
+        for key in (data.keys() if data else []):
+            val = data[key]
+            print(f"[MATCH DEBUG] Key '{key}' type: {type(val).__name__}, len: {len(val) if hasattr(val, '__len__') else 'N/A'}")
+        
         client_data = data.get("client")
-        partners_data = data.get("partners", [])
+        partners_raw = data.get("partners", [])
         
         if not client_data:
             return jsonify({
@@ -43,23 +163,26 @@ def match():
                 "received_keys": list(data.keys()) if data else []
             }), 400
         
+        # Parse partners from various formats
+        partners_data = _parse_aggregated_partners(partners_raw)
+        
+        print(f"[MATCH DEBUG] Client: {client_data.get('title', 'Unknown') if isinstance(client_data, dict) else 'Unknown'}")
+        print(f"[MATCH DEBUG] Raw partners type: {type(partners_raw).__name__}")
+        print(f"[MATCH DEBUG] Parsed partners count: {len(partners_data)}")
+        
         if not partners_data:
             return jsonify({
-                "error": "Missing 'partners' data in payload",
-                "received_keys": list(data.keys()) if data else []
+                "error": "No partners data could be parsed",
+                "partners_raw_type": type(partners_raw).__name__,
+                "partners_raw_preview": str(partners_raw)[:500] if partners_raw else "empty"
             }), 400
         
-        print(f"[MATCH DEBUG] Client: {client_data.get('title', 'Unknown')}")
-        print(f"[MATCH DEBUG] Partners count: {len(partners_data)}")
-        
-        # Debug: Print first partner's keys and title
+        # Debug: Print first partner info
         if partners_data:
-            first_partner = partners_data[0] if isinstance(partners_data, list) else partners_data
+            first_partner = partners_data[0]
             if isinstance(first_partner, dict):
                 print(f"[MATCH DEBUG] First partner keys: {list(first_partner.keys())[:10]}")
                 print(f"[MATCH DEBUG] First partner title: {first_partner.get('title', 'No title')}")
-            else:
-                print(f"[MATCH DEBUG] Partner data type: {type(first_partner)}")
         
         client_name = _extract_client_name(client_data)
         client_requirements = _extract_client_requirements(client_data)
