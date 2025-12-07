@@ -20,7 +20,16 @@ def _parse_aggregated_partners(partners_raw):
     - JSON array of partner objects
     - Text string with partner data (aggregated format)
     - Single partner object
+    - Dict with 'text' key containing aggregated text
     """
+    # If it's a dict with 'text' key, extract the text and parse it
+    if isinstance(partners_raw, dict) and 'text' in partners_raw:
+        print(f"[MATCH DEBUG] Found 'text' key in partners, extracting...")
+        text_content = partners_raw['text']
+        print(f"[MATCH DEBUG] Text content length: {len(text_content) if text_content else 0}")
+        print(f"[MATCH DEBUG] Text preview: {str(text_content)[:500]}")
+        return _parse_aggregated_partners(text_content)
+    
     # If it's already a list of dicts, return as-is
     if isinstance(partners_raw, list):
         if all(isinstance(p, dict) for p in partners_raw):
@@ -40,7 +49,7 @@ def _parse_aggregated_partners(partners_raw):
                         parsed.append(partner)
         return parsed
     
-    # If it's a single dict, wrap in list
+    # If it's a single dict (but not with 'text' key), wrap in list
     if isinstance(partners_raw, dict):
         return [partners_raw]
     
